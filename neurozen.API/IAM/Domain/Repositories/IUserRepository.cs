@@ -22,6 +22,8 @@ public interface IUserRepository : IBaseRepository<User>
      */
     Task<User?> FindByUsernameAsync(string username);
 
+    Task<User?> FindByIdAsync(Guid id);
+
     /**
      * <summary>
      *     Check if a user exists by username

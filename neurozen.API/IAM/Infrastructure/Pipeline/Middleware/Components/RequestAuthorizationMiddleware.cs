@@ -48,7 +48,7 @@ public class RequestAuthorizationMiddleware(RequestDelegate next)
             if (context.User?.Identity?.IsAuthenticated == true)
             {
                 var sidClaim = context.User.FindFirst(ClaimTypes.Sid) ?? context.User.FindFirst("sub") ?? context.User.FindFirst(ClaimTypes.NameIdentifier);
-                if (sidClaim != null && int.TryParse(sidClaim.Value, out var userId))
+                if (sidClaim != null && Guid.TryParse(sidClaim.Value, out var userId))
                 {
                     var getUserByIdQuery = new GetUserByIdQuery(userId);
                     var user = await userQueryService.Handle(getUserByIdQuery);

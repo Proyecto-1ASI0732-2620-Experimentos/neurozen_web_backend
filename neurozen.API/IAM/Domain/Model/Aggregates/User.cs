@@ -16,8 +16,10 @@ public class User(string username, string passwordHash)
     {
     }
 
-    public int Id { get; }
+    public Guid Id { get; private set; }
     public string Username { get; private set; } = username;
+
+    public void SetId(Guid id) => Id = id;
 
     [JsonIgnore] public string PasswordHash { get; private set; } = passwordHash;
 

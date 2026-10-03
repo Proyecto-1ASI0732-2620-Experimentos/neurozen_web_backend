@@ -1,3 +1,3 @@
 namespace neurozen.API.IAM.Interfaces.REST.Resources;
 
-public record AuthenticatedUserResource(int Id, string Username, string Token);
+public record AuthenticatedUserResource(Guid Id, string Username, string Token);

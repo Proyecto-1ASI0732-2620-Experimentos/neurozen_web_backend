@@ -52,6 +52,12 @@ public class AppDbContext(DbContextOptions options) : DbContext(options)
         builder.ApplyConfiguration(
             new ResourcesLibrary.Infrastructure.Persistence.EFC.Configuration.ResourceLibraryConfiguration());
 
+        builder.ApplyConfiguration(
+            new Wellness.Infrastructure.Persistence.EFC.Configuration.MeditationConfiguration());
+
+        builder.ApplyConfiguration(
+            new Wellness.Infrastructure.Persistence.EFC.Configuration.HealthMetricConfiguration());
+
         // Apply IAM bounded context configuration
         builder.ApplyIamConfiguration();
  		

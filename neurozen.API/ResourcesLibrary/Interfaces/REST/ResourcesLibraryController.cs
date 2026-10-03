@@ -60,7 +60,7 @@ public class ResourceLibrariesController : ControllerBase
     {
         String msg = _localizer.GetString("GetAllResourceLibrariesError");
         var results = await _repository.ListAsync();
-        if (results == null || !results.Any()) return NotFound(new { message = msg });
+        if (results == null) return Ok(Array.Empty<ResourceLibraryResource>());
         var resources = results.Select(ResourceLibraryResourceFromEntityAssembler.ToResourceFromEntity);
         return Ok(resources);
     }

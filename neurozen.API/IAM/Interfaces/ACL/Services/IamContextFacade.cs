@@ -6,23 +6,23 @@ namespace neurozen.API.IAM.Interfaces.ACL.Services;
 
 public class IamContextFacade(IUserCommandService userCommandService, IUserQueryService userQueryService) : IIamContextFacade
 {
-    public async Task<int> CreateUser(string username, string password)
+    public async Task<Guid> CreateUser(string username, string password)
     {
         var signUpCommand = new SignUpCommand(username, password);
         await userCommandService.Handle(signUpCommand);
         var getUserByUsernameQuery = new GetUserByUsernameQuery(username);
         var result = await userQueryService.Handle(getUserByUsernameQuery);
-        return result?.Id ?? 0;
+        return result?.Id ?? Guid.Empty;
     }
 
-    public async Task<int> FetchUserIdByUsername(string username)
+    public async Task<Guid> FetchUserIdByUsername(string username)
     {
         var getUserByUsernameQuery = new GetUserByUsernameQuery(username);
         var result = await userQueryService.Handle(getUserByUsernameQuery);
-        return result?.Id ?? 0;
+        return result?.Id ?? Guid.Empty;
     }
 
-    public async Task<string> FetchUsernameByUserId(int userId)
+    public async Task<string> FetchUsernameByUserId(Guid userId)
     {
         var getUserByIdQuery = new GetUserByIdQuery(userId);
         var result = await userQueryService.Handle(getUserByIdQuery);

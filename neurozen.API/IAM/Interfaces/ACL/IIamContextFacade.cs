@@ -2,7 +2,7 @@ namespace neurozen.API.IAM.Interfaces.ACL;
 
 public interface IIamContextFacade
 {
-    Task<int> CreateUser(string username, string password);
-    Task<int> FetchUserIdByUsername(string username);
-    Task<string> FetchUsernameByUserId(int userId);
+    Task<Guid> CreateUser(string username, string password);
+    Task<Guid> FetchUserIdByUsername(string username);
+    Task<string> FetchUsernameByUserId(Guid userId);
 }

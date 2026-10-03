@@ -18,7 +18,16 @@ using neurozen.API.Appointments.Application.Internal.QueryServices;
 using neurozen.API.Appointments.Domain.Repositories;
 using neurozen.API.Appointments.Domain.Services;
 using neurozen.API.Appointments.Infrastructure.Repositories;
+using neurozen.API.Professionals.Application.Internal.CommandServices;
+using neurozen.API.Professionals.Application.Internal.QueryServices;
+using neurozen.API.Professionals.Domain.Repositories;
+using neurozen.API.Professionals.Domain.Services;
+using neurozen.API.Professionals.Infrastructure.Repositories;
 using neurozen.API.Resources;
+using neurozen.API.ResourcesLibrary.Application.Internal.CommandServices;
+using neurozen.API.ResourcesLibrary.Domain.Repositories;
+using neurozen.API.ResourcesLibrary.Domain.Services;
+using neurozen.API.ResourcesLibrary.Infrastructure.Repositories;
 using neurozen.API.Triggers.Application.Internal.CommandServices;
 using neurozen.API.Triggers.Domain.Repositories;
 using neurozen.API.Triggers.Domain.Services;
@@ -45,6 +54,17 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddRouting(options => options.LowercaseUrls = true );
 builder.Services.AddEndpointsApiExplorer();
+
+// Allow the local mobile frontend to call the API during development.
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("LocalDevelopment", policy =>
+    {
+        policy.AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 // Add controllers and apply a global authorization filter so every endpoint requires
 // authorization by default. Controllers/actions decorated with [AllowAnonymous]
@@ -154,6 +174,15 @@ builder.Services.AddScoped<IAppointmentRepository, AppointmentRepository>();
 builder.Services.AddScoped<IAppointmentCommandService, AppointmentCommandService>();
 builder.Services.AddScoped<IAppointmentQueryService, AppointmentQueryService>();
 
+// Professionals services
+builder.Services.AddScoped<IProfessionalRepository, ProfessionalRepository>();
+builder.Services.AddScoped<IProfessionalCommandService, ProfessionalCommandService>();
+builder.Services.AddScoped<IProfessionalQueryService, ProfessionalQueryService>();
+
+// Resource library services
+builder.Services.AddScoped<IResourceLibraryRepository, ResourceLibraryRepository>();
+builder.Services.AddScoped<IResourceLibraryCommandService, ResourceLibraryCommandService>();
+
 // Triggers services
 builder.Services.AddScoped<ITriggerRepository, TriggerRepository>();
 builder.Services.AddScoped<ITriggerCommandService, TriggerCommandService>();
@@ -170,9 +199,42 @@ using (var scope = app.Services.CreateScope())
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<AppDbContext>();
     context.Database.EnsureCreated();
+    context.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS meditations (
+            id INT NOT NULL AUTO_INCREMENT,
+            title VARCHAR(200) NOT NULL,
+            description VARCHAR(1000) NOT NULL,
+            duration_minutes INT NOT NULL,
+            image_url VARCHAR(500) NOT NULL,
+            audio_url VARCHAR(500) NOT NULL,
+            PRIMARY KEY (id)
+        ) CHARACTER SET utf8mb4;
+
+        CREATE TABLE IF NOT EXISTS health_metrics (
+            id INT NOT NULL AUTO_INCREMENT,
+            user_id CHAR(36) NOT NULL,
+            stress_level INT NOT NULL,
+            heart_rate INT NULL,
+            sleep_hours DECIMAL(4, 1) NULL,
+            notes VARCHAR(1000) NULL,
+            created_at DATETIME(6) NOT NULL,
+            PRIMARY KEY (id),
+            INDEX idx_health_metrics_user_id (user_id),
+            INDEX idx_health_metrics_created_at (created_at)
+        ) CHARACTER SET utf8mb4;
+
+        INSERT INTO meditations (title, description, duration_minutes, image_url, audio_url)
+        SELECT 'Calma Mental y Mindfulness',
+               'Sesion guiada para reducir la rumiacion cognitiva.',
+               15,
+               'https://images.unsplash.com/photo-1518199266791',
+               'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
+        WHERE NOT EXISTS (SELECT 1 FROM meditations);
+        """);
 }
 app.UseRequestLocalization(LocalizationOptions);
 app.UseHttpsRedirection();
+app.UseCors("LocalDevelopment");
 // Authentication middleware must run before authorization
 app.UseAuthentication();
 // Custom request authorization middleware (validates JWT and sets HttpContext.Items["User"])

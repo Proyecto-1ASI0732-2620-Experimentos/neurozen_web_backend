@@ -28,5 +28,5 @@ public interface ITokenService
      * <param name="token">The token to validate</param>
      * <returns>The user id if the token is valid, null otherwise</returns>
      */
-    Task<int?> ValidateToken(string token);
+    Task<Guid?> ValidateToken(string token);
 }

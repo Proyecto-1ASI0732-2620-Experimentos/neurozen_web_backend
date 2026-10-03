@@ -8,4 +8,4 @@ namespace neurozen.API.IAM.Domain.Model.Queries;
  *     This query object includes the user id to search
  * </remarks>
  */
-public record GetUserByIdQuery(int Id);
+public record GetUserByIdQuery(Guid Id);

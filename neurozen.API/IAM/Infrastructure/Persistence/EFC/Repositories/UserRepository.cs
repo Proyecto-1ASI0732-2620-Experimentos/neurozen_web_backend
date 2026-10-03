@@ -47,11 +47,18 @@ public class UserRepository(AppDbContext context) : IUserRepository
      * <param name="id">The user id</param>
      * <returns>The user</returns>
      */
-    public async Task<User?> FindByIdAsync(int id)
+    public Task<User?> FindByIdAsync(int id)
+    {
+        return Task.FromResult<User?>(null);
+    }
+
+    public async Task<User?> FindByIdAsync(Guid id)
     {
         var userEntity = await Context.Set<UserManagement.Domain.Entities.User>().FindAsync(id);
         if (userEntity == null) return null;
-        return new User(userEntity.Email, userEntity.PasswordHash);
+        var user = new User(userEntity.Email, userEntity.PasswordHash ?? string.Empty);
+        user.SetId(userEntity.Id);
+        return user;
     }
 
     /**
@@ -98,7 +105,12 @@ public class UserRepository(AppDbContext context) : IUserRepository
     public async Task<IEnumerable<User>> ListAsync()
     {
         var userEntities = await Context.Set<UserManagement.Domain.Entities.User>().ToListAsync();
-        return userEntities.Select(u => new User(u.Email, u.PasswordHash)).ToList();
+        return userEntities.Select(u =>
+        {
+            var user = new User(u.Email, u.PasswordHash ?? string.Empty);
+            user.SetId(u.Id);
+            return user;
+        }).ToList();
     }
 
     /**
@@ -115,7 +127,9 @@ public class UserRepository(AppDbContext context) : IUserRepository
 
         if (userEntity == null) return null;
 
-        return new User(userEntity.Email, userEntity.PasswordHash);
+        var user = new User(userEntity.Email, userEntity.PasswordHash ?? string.Empty);
+        user.SetId(userEntity.Id);
+        return user;
     }
 
     /**

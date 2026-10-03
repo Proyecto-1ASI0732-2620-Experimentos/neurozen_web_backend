@@ -37,7 +37,7 @@ public class UsersController(IUserQueryService userQueryService) : ControllerBas
         Description = "Get a user by its id",
         OperationId = "GetUserById")]
     [SwaggerResponse(StatusCodes.Status200OK, "The user was found", typeof(UserResource))]
-    public async Task<IActionResult> GetUserById(int id)
+    public async Task<IActionResult> GetUserById(Guid id)
     {
         var getUserByIdQuery = new GetUserByIdQuery(id);
         var user = await userQueryService.Handle(getUserByIdQuery);

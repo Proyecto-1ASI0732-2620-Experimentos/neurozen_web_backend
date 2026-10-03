@@ -65,7 +65,7 @@ public class TokenService(IOptions<TokenSettings> tokenSettings) : ITokenService
      * <param name="token">The token to validate</param>
      * <returns>The user id if the token is valid, null otherwise</returns>
      */
-    public async Task<int?> ValidateToken(string token)
+    public async Task<Guid?> ValidateToken(string token)
     {
         // If token is null or empty
         if (string.IsNullOrEmpty(token))
@@ -95,7 +95,7 @@ public class TokenService(IOptions<TokenSettings> tokenSettings) : ITokenService
             });
 
             var jwtToken = (JsonWebToken)tokenValidationResult.SecurityToken;
-            var userId = int.Parse(jwtToken.Claims.First(claim => claim.Type == ClaimTypes.Sid).Value);
+            var userId = Guid.Parse(jwtToken.Claims.First(claim => claim.Type == ClaimTypes.Sid).Value);
             return userId;
         }
         catch (Exception e)

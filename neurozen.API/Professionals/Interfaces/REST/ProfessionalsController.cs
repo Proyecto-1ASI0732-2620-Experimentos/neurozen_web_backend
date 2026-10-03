@@ -31,7 +31,7 @@ public class ProfessionalsController(
     String msg = _localizer.GetString("GetAllProfessionalsError");
     var getAllProfessionalsQuery = new GetAllProfessionalsQuery();
     var result = await professionalQueryService.Handle(getAllProfessionalsQuery);
-    if (result == null || !result.Any()) return BadRequest(new { message = msg });
+    if (result == null) return Ok(Array.Empty<ProfessionalResource>());
     var professionals = result.Select(ProfessionalResourceFromEntityAssembler.ToResourceFromEntity);
     return Ok(professionals);
   }

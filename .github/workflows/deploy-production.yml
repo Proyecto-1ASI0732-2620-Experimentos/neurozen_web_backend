@@ -38,7 +38,7 @@ jobs:
         run: |
           for attempt in {1..18}; do
             if curl --fail --show-error --silent \
-              "https://neurozen-api.onrender.com/health"; then
+              "https://neurozen-backend-mobile.onrender.com/health"; then
               exit 0
             fi
             echo "Production is not ready yet (attempt $attempt/18)."

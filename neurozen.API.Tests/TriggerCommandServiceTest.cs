@@ -9,6 +9,14 @@ using neurozen.API.Triggers.Domain.Repositories;
 
 public class TriggerCommandServiceTest
 {
+  /// <summary>
+    /// PRUEBA 1: Creación Exitosa de un Trigger
+    /// - Por qué se realiza: Para comprobar que el servicio procesa un comando válido, 
+    ///   crea la entidad y llama exactamente una vez a los métodos de persistencia y confirmación.
+    /// - Por qué es importante: Garantiza que la lógica de negocio principal de escritura 
+    ///   funciona correctamente de forma aislada, asegurando la integridad de los datos 
+    ///   sin necesidad de una base de datos real.
+  /// </summary>
   [Fact]
   public async Task CreateTriggerCommandTest()
   {
@@ -30,6 +38,13 @@ public class TriggerCommandServiceTest
     mockUow.Verify(u => u.CompleteAsync(), Times.Once);
   }
 
+  /// <summary>
+    /// PRUEBA 2: Manejo de Errores de Base de Datos
+    /// - Por qué se realiza: Para simular una excepción a nivel de infraestructura 
+    ///   (falla en el commit de la base de datos) y verificar que el bloque try-catch reacciona adecuadamente.
+    /// - Por qué es importante: Evita que la aplicación crashee
+    ///   ante caídas de la base de datos, asegurando un manejo de errores controlado que devuelve null de forma segura.
+    /// </summary>
   [Fact]
   public async Task CreateTrigger_WhenDatabaseFails_ReturnsNull()
   {

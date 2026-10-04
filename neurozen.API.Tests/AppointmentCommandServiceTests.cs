@@ -29,6 +29,6 @@ public class AppointmentCommandServiceTests
         Assert.NotNull(result);
         Assert.Equal(command.PatientId, result.PatientId);
         mockRepo.Verify(r => r.AddAsync(It.IsAny<Appointment>()), Times.Once); // Verifica que se llamó al repositorio 1 vez
-        mockUow.Verify(u => u.CompleteAsync(), Times.Once); // Verifica que se hizo el commit 1 vez
+        mockUow.Verify(u => u.CompleteAsync(), Times.Once); //Verificamos que se completó una vez
   }
 }

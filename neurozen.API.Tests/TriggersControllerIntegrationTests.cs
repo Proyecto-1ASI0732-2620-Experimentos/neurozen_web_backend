@@ -18,7 +18,14 @@ public class TriggersControllerIntegrationTests : IClassFixture<IntegrationTestW
             AllowAutoRedirect = false
         });
     }
-
+    /// <summary>
+    /// PRUEBA 4: Validación de Regla de Negocio y Seguridad en Controlador (End-to-End)
+    /// - Por qué se realiza: Para simular un flujo real de usuario completo (registro, 
+    ///   inicio de sesión para obtener el token JWT, inyección de credenciales y envío de datos inválidos (> 10 de estrés)).
+    /// - Por qué es importante: Es la prueba de mayor nivel de confianza; valida que 
+    ///   los middlewares de seguridad, los controladores REST, las políticas de autorización 
+    ///   y las validaciones de datos operen conjuntamente de forma correcta en un entorno real.
+    /// </summary>
     [Fact]
     public async Task CreateTrigger_StressLevelGreaterThan10_ReturnsBadRequest()
     {

@@ -33,7 +33,7 @@ using neurozen.API.Triggers.Domain.Repositories;
 using neurozen.API.Triggers.Domain.Services;
 using neurozen.API.Triggers.Infraestructure.Respositories;
 using neurozen.API.Subscriptions.Application.Internal.CommandServices;
-using neurozen.API.Subscriptions.Domain.Repositories; 
+using neurozen.API.Subscriptions.Domain.Repositories;
 using neurozen.API.Subscriptions.Domain.Services;
 using neurozen.API.Subscriptions.Infraestructure.Respositories;
 using neurozen.API.Shared.Domain.Repositories;
@@ -52,7 +52,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-builder.Services.AddRouting(options => options.LowercaseUrls = true );
+builder.Services.AddRouting(options => options.LowercaseUrls = true);
 builder.Services.AddEndpointsApiExplorer();
 
 // Allow the local mobile frontend to call the API during development.
@@ -247,3 +247,5 @@ app.UseSwaggerUI();
 
 
 app.Run();
+
+public partial class Program { }

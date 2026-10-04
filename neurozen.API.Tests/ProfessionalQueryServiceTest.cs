@@ -14,10 +14,10 @@ public class ProfessionalQueryServiceTest
     var mockRepo = new Mock<IProfessionalRepository>();
     var serviceQuery = new ProfessionalQueryService(mockRepo.Object);
     //Creamos la entidad fake del profesional
-    var command = new CreateProfessionalCommand("Miguel","Depresión","5 años",0,0,30,"Lun. | Vier.","test","test.png");
+    var command = new CreateProfessionalCommand("Miguel", "Depresión", "5 años", 0, 0, 30, "Lun. | Vier.", "test", "test.png");
     var professionalFake = new Professional(command);
     var testId = professionalFake.Id;
-    
+
     //Configuramos el mock para que devuelva el profesional fake cuando le pregunten por ese ID
     mockRepo.Setup(r => r.FindByIdAsync(testId)).ReturnsAsync(professionalFake);
 

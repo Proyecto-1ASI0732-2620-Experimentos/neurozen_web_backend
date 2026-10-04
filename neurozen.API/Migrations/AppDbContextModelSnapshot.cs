@@ -214,62 +214,6 @@ namespace neurozen.API.Migrations
                     b.ToTable("product_images", (string)null);
                 });
 
-            modelBuilder.Entity("neurozen.API.IAM.Domain.Model.Aggregates.User", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Address")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<string>("AvatarUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
-
-                    b.Property<DateTime?>("DateOfBirth")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Email")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("FullName")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("PhoneNumber")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime(6)")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlComputedColumn(b.Property<DateTime?>("UpdatedAt"));
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("users", (string)null);
-                });
-
             modelBuilder.Entity("neurozen.API.Payments.Domain.Entities.Payment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -447,8 +391,8 @@ namespace neurozen.API.Migrations
                         .HasColumnType("datetime")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
 
-                    b.Property<int?>("UserId")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("char(36)");
 
                     b.HasKey("Id");
 
@@ -538,8 +482,8 @@ namespace neurozen.API.Migrations
                         .HasColumnType("datetime")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
 
-                    b.Property<int?>("UserId")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("char(36)");
 
                     b.HasKey("Id");
 
@@ -610,85 +554,6 @@ namespace neurozen.API.Migrations
                     b.HasKey("Key");
 
                     b.ToTable("app_settings", (string)null);
-                });
-
-            modelBuilder.Entity("neurozen.API.Subscriptions.Domain.Model.Aggregates.Subscription", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("Id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Cvv")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("Cvv");
-
-                    b.Property<string>("EmailUser")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("EmailUser");
-
-                    b.Property<string>("ExpirationDate")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("ExpirationDate");
-
-                    b.Property<bool?>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true)
-                        .HasColumnName("IsActive");
-
-                    b.Property<string>("LastNameUser")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("LastNameUser");
-
-                    b.Property<string>("NameUser")
-                        .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("NameUser");
-
-                    b.Property<string>("NumberCard")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("NumberCard");
-
-                    b.Property<int>("PlanId")
-                        .HasColumnType("int")
-                        .HasColumnName("PlanId");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int")
-                        .HasColumnName("UserId");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Cvv")
-                        .HasDatabaseName("IX_Subscription_Cvv");
-
-                    b.HasIndex("EmailUser")
-                        .HasDatabaseName("IX_Subscription_EmailUser");
-
-                    b.HasIndex("ExpirationDate")
-                        .HasDatabaseName("IX_Subscription_ExpirationDate");
-
-                    b.HasIndex("IsActive")
-                        .HasDatabaseName("IX_Subscription_IsActive");
-
-                    b.HasIndex("NumberCard")
-                        .HasDatabaseName("IX_Subscription_NumberCard");
-
-                    b.HasIndex("PlanId")
-                        .HasDatabaseName("IX_Subscription_PlanId");
-
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("IX_Subscription_UserId");
-
-                    b.ToTable("Subscriptions", (string)null);
                 });
 
             modelBuilder.Entity("neurozen.API.Triggers.Domain.Model.Aggregates.Trigger", b =>
@@ -777,8 +642,8 @@ namespace neurozen.API.Migrations
                     b.Property<string>("Street")
                         .HasColumnType("longtext");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
 
                     b.HasKey("Id");
 
@@ -818,8 +683,8 @@ namespace neurozen.API.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
 
                     b.HasKey("Id");
 
@@ -854,8 +719,8 @@ namespace neurozen.API.Migrations
                     b.Property<string>("UserAgent")
                         .HasColumnType("text");
 
-                    b.Property<int?>("UserId")
-                        .HasColumnType("int");
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("char(36)");
 
                     b.HasKey("Id");
 
@@ -865,6 +730,144 @@ namespace neurozen.API.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("sessions", (string)null);
+                });
+
+            modelBuilder.Entity("neurozen.API.UserManagement.Domain.Entities.User", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("AvatarUrl")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("FullName")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("Meta")
+                        .IsRequired()
+                        .HasColumnType("json");
+
+                    b.Property<string>("PasswordHash")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasDefaultValue("user");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("neurozen.API.Wellness.Domain.Entities.HealthMetric", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("HeartRate")
+                        .HasColumnType("int")
+                        .HasColumnName("heart_rate");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("notes");
+
+                    b.Property<decimal?>("SleepHours")
+                        .HasColumnType("decimal(4,1)")
+                        .HasColumnName("sleep_hours");
+
+                    b.Property<int>("StressLevel")
+                        .HasColumnType("int")
+                        .HasColumnName("stress_level");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("idx_health_metrics_created_at");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("idx_health_metrics_user_id");
+
+                    b.ToTable("health_metrics", (string)null);
+                });
+
+            modelBuilder.Entity("neurozen.API.Wellness.Domain.Entities.Meditation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AudioUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("audio_url");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("int")
+                        .HasColumnName("duration_minutes");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("image_url");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("title");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("meditations", (string)null);
                 });
 
             modelBuilder.Entity("neurozen.API.Catalog.Domain.Entities.Category", b =>
@@ -910,7 +913,7 @@ namespace neurozen.API.Migrations
 
             modelBuilder.Entity("neurozen.API.Sales.Domain.Entities.Cart", b =>
                 {
-                    b.HasOne("neurozen.API.IAM.Domain.Model.Aggregates.User", "User")
+                    b.HasOne("neurozen.API.UserManagement.Domain.Entities.User", "User")
                         .WithMany("Carts")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -948,7 +951,7 @@ namespace neurozen.API.Migrations
                         .HasForeignKey("ShippingAddressId")
                         .OnDelete(DeleteBehavior.NoAction);
 
-                    b.HasOne("neurozen.API.IAM.Domain.Model.Aggregates.User", "User")
+                    b.HasOne("neurozen.API.UserManagement.Domain.Entities.User", "User")
                         .WithMany("Orders")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -978,7 +981,7 @@ namespace neurozen.API.Migrations
 
             modelBuilder.Entity("neurozen.API.UserManagement.Domain.Entities.Address", b =>
                 {
-                    b.HasOne("neurozen.API.IAM.Domain.Model.Aggregates.User", "User")
+                    b.HasOne("neurozen.API.UserManagement.Domain.Entities.User", "User")
                         .WithMany("Addresses")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -989,7 +992,7 @@ namespace neurozen.API.Migrations
 
             modelBuilder.Entity("neurozen.API.UserManagement.Domain.Entities.Notification", b =>
                 {
-                    b.HasOne("neurozen.API.IAM.Domain.Model.Aggregates.User", "User")
+                    b.HasOne("neurozen.API.UserManagement.Domain.Entities.User", "User")
                         .WithMany("Notifications")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1000,7 +1003,7 @@ namespace neurozen.API.Migrations
 
             modelBuilder.Entity("neurozen.API.UserManagement.Domain.Entities.Session", b =>
                 {
-                    b.HasOne("neurozen.API.IAM.Domain.Model.Aggregates.User", "User")
+                    b.HasOne("neurozen.API.UserManagement.Domain.Entities.User", "User")
                         .WithMany("Sessions")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade);
@@ -1020,19 +1023,6 @@ namespace neurozen.API.Migrations
                     b.Navigation("Images");
                 });
 
-            modelBuilder.Entity("neurozen.API.IAM.Domain.Model.Aggregates.User", b =>
-                {
-                    b.Navigation("Addresses");
-
-                    b.Navigation("Carts");
-
-                    b.Navigation("Notifications");
-
-                    b.Navigation("Orders");
-
-                    b.Navigation("Sessions");
-                });
-
             modelBuilder.Entity("neurozen.API.Sales.Domain.Entities.Cart", b =>
                 {
                     b.Navigation("Items");
@@ -1043,6 +1033,19 @@ namespace neurozen.API.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Payments");
+                });
+
+            modelBuilder.Entity("neurozen.API.UserManagement.Domain.Entities.User", b =>
+                {
+                    b.Navigation("Addresses");
+
+                    b.Navigation("Carts");
+
+                    b.Navigation("Notifications");
+
+                    b.Navigation("Orders");
+
+                    b.Navigation("Sessions");
                 });
 #pragma warning restore 612, 618
         }

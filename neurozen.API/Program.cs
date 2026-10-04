@@ -193,6 +193,9 @@ builder.Services.AddScoped<ISubscriptionCommandService, SubscriptionCommandServi
 
 var app = builder.Build();
 
+app.MapGet("/health", () => Results.Ok(new { status = "healthy" }))
+    .AllowAnonymous();
+
 // Verify Database Objects are created
 using (var scope = app.Services.CreateScope())
 {

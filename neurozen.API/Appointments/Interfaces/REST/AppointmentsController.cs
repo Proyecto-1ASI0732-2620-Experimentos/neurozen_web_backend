@@ -1,91 +1,87 @@
-﻿using System.Net.Mime;
+using System.Net.Mime;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Localization;
 using neurozen.API.Appointments.Domain.Model.Commands;
-using Swashbuckle.AspNetCore.Annotations;
 using neurozen.API.Appointments.Domain.Model.Queries;
+using neurozen.API.Appointments.Domain.Model.ValueObjects;
 using neurozen.API.Appointments.Domain.Services;
 using neurozen.API.Appointments.Interfaces.REST.Resources;
 using neurozen.API.Appointments.Interfaces.REST.Transform;
-using neurozen.API.Appointments.Domain.Model.ValueObjects;
-using neurozen.API.Resources;
+using neurozen.API.Shared.Domain.Model.Security;
+using neurozen.API.Shared.Infrastructure.Interfaces.ASP.ErrorHandling;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace neurozen.API.Appointments.Interfaces.REST;
 
-
+/// <summary>
+///     Appointments. A user that is not a participant of an appointment gets 404 (its existence is not revealed).
+/// </summary>
 [ApiController]
-[Route("api/v1/[controller]")]
+[Route("api/v1/appointments")]
 [Produces(MediaTypeNames.Application.Json)]
 [Tags("Appointments")]
 public class AppointmentsController(
     IAppointmentCommandService appointmentCommandService,
-    IAppointmentQueryService appointmentQueryService,
-    IStringLocalizer<SharedResource> _localizer) : ControllerBase
+    IAppointmentQueryService appointmentQueryService) : ControllerBase
 {
-    [HttpPost]
-    [SwaggerOperation(
-        Summary = "Create a new appointment",
-        Description = "Creates a new appointment with the provided details."
-    )]
-    [SwaggerResponse(201, "Appointment created successfully", typeof(AppointmentResource))]
-    [SwaggerResponse(400, "Appointment creation failed")]
-    public async Task<ActionResult> CreateAppointment([FromBody] CreateAppointmentResource resource)
-    {
-        String msg = _localizer.GetString("CreateAppointmentError");
-        var createAppointmentCommand = CreateAppointmentCommandFromResourceAssembler.ToCommandFromResource(resource);
-        var result =  await appointmentCommandService.Handle(createAppointmentCommand);
-        if (result is null) return BadRequest(new { message = msg });
-        return CreatedAtAction(nameof(GetAppointmentById), new{id = result.Id}, AppointmentResourceFromEntityAssembler.ToResourceFromEntity(result));
-    }
-    
-    [HttpGet("appointments/{patientId}")]
-    [SwaggerOperation(
-        Summary = "Get all appointments by patient ID",
-        Description = "Retrieves all appointments associated with a specific patient ID."
-    )]
-    [SwaggerResponse(200, "Appointments retrieved successfully", typeof(IEnumerable<AppointmentResource>))]
-    [SwaggerResponse(400, "Appointments retrieval failed")]
-    public async Task<ActionResult<IEnumerable<AppointmentResource>>> GetAllAppointmentsByPatientIdAsync(int patientId)
-    {
-        String msg = _localizer.GetString("GetAppointmentsbyPatientIdError");
-        var getAllAppointmentsByPatientIdQuery = new GetAllAppointmentsQueryByPatientId(patientId);
-        var result = await appointmentQueryService.Handle(getAllAppointmentsByPatientIdQuery);
-        if (result == null || !result.Any()) return NotFound(new { message = msg });
-        var appointments = result.Select(AppointmentResourceFromEntityAssembler.ToResourceFromEntity);
-        return Ok(appointments);
-    }
-    
-    [HttpGet("{id}")]
-    [SwaggerOperation(
-        Summary = "Get appointment by ID",
-        Description = "Retrieves an appointment by its unique ID.")]
-    [SwaggerResponse(200, "Appointment retrieved successfully", typeof(AppointmentResource))]
-    [SwaggerResponse(404, "Appointment not found")]
-    public async Task<ActionResult> GetAppointmentById(int id)
-    {
-        String msg = _localizer.GetString("GetAppointmentByIdError");
-        var getAppointmentByIdQuery = new GetAppointmentByIdQuery(id);
-        var result = await appointmentQueryService.Handle(getAppointmentByIdQuery);
-        if (result is null) return NotFound(new { message = msg });
-        return Ok(AppointmentResourceFromEntityAssembler.ToResourceFromEntity(result));
-    }
-    
     [HttpGet("types")]
-    [SwaggerOperation(
-        Summary = "Get all appointment types",
-        Description = "Retrieves all available appointment types with their details (name, description, estimated duration).")]
-    [SwaggerResponse(200, "Appointment types retrieved successfully")]
-    public ActionResult GetAppointmentTypes()
+    [SwaggerOperation(Summary = "Appointment types (value 1-3, display name, estimated duration)")]
+    [SwaggerResponse(StatusCodes.Status200OK, "Types", typeof(IEnumerable<AppointmentTypeResource>))]
+    public ActionResult<IEnumerable<AppointmentTypeResource>> GetAppointmentTypes() =>
+        Ok(AppointmentType.GetAll().Select(AppointmentResourceFromEntityAssembler.ToResource));
+
+    [HttpGet]
+    [SwaggerOperation(Summary = "My appointments: ?patientId= (USER, own id) or ?professionalId= (verified psychologist, own profile)",
+        Description = "Ordered by date ascending. patientName/patientEmail are included for the psychologist.")]
+    [SwaggerResponse(StatusCodes.Status200OK, "Appointments", typeof(IEnumerable<AppointmentResource>))]
+    [SwaggerResponse(StatusCodes.Status400BadRequest, "Neither or both filters", typeof(ErrorResponse))]
+    [SwaggerResponse(StatusCodes.Status403Forbidden, "Not your appointments", typeof(ErrorResponse))]
+    public async Task<ActionResult<IEnumerable<AppointmentResource>>> GetAppointments(
+        [FromQuery] long? patientId, [FromQuery] long? professionalId)
     {
-        var types = AppointmentType.GetAll()
-            .Select(t => new {
-                value = (int)t.Type,
-                name = t.Type.ToString(),
-                displayName = t.DisplayName,
-                description = t.Description,
-                estimatedDurationMinutes = t.EstimatedDurationMinutes
-            });
-        
-        return Ok(types);
+        var appointments = await appointmentQueryService.Handle(new GetAppointmentsQuery(patientId, professionalId));
+        return Ok(appointments.Select(AppointmentResourceFromEntityAssembler.ToResourceFromEntity));
+    }
+
+    [HttpGet("{id:long}")]
+    [SwaggerOperation(Summary = "Appointment detail (participants only)")]
+    [SwaggerResponse(StatusCodes.Status200OK, "The appointment", typeof(AppointmentResource))]
+    [SwaggerResponse(StatusCodes.Status404NotFound, "Not found or not a participant", typeof(ErrorResponse))]
+    public async Task<ActionResult<AppointmentResource>> GetAppointmentById(long id)
+    {
+        var details = await appointmentQueryService.Handle(new GetAppointmentByIdQuery(id));
+        return Ok(AppointmentResourceFromEntityAssembler.ToResourceFromEntity(details));
+    }
+
+    [HttpPost]
+    [Authorize(Roles = AppRoles.User)]
+    [SwaggerOperation(Summary = "Book an appointment (status PENDING)",
+        Description = "patientId must be the caller. The professional must be VERIFIED, the date future and " +
+                      "inside the professional's availability, and the slot free.")]
+    [SwaggerResponse(StatusCodes.Status201Created, "Booked", typeof(AppointmentResource))]
+    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid data, past date or outside availability", typeof(ErrorResponse))]
+    [SwaggerResponse(StatusCodes.Status403Forbidden, "patientId is not the caller", typeof(ErrorResponse))]
+    [SwaggerResponse(StatusCodes.Status404NotFound, "Professional not found or not verified", typeof(ErrorResponse))]
+    [SwaggerResponse(StatusCodes.Status409Conflict, "Slot already taken", typeof(ErrorResponse))]
+    public async Task<ActionResult<AppointmentResource>> CreateAppointment(
+        [FromBody] CreateAppointmentResource resource)
+    {
+        var details = await appointmentCommandService.Handle(
+            CreateAppointmentCommandFromResourceAssembler.ToCommandFromResource(resource));
+        var body = AppointmentResourceFromEntityAssembler.ToResourceFromEntity(details);
+        return CreatedAtAction(nameof(GetAppointmentById), new { id = body.Id }, body);
+    }
+
+    [HttpPatch("{id:long}/status")]
+    [SwaggerOperation(Summary = "Change the status: CONFIRMED / COMPLETED (psychologist) or CANCELLED (either participant)")]
+    [SwaggerResponse(StatusCodes.Status200OK, "Updated", typeof(AppointmentResource))]
+    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid transition", typeof(ErrorResponse))]
+    [SwaggerResponse(StatusCodes.Status403Forbidden, "Transition not allowed for the caller", typeof(ErrorResponse))]
+    [SwaggerResponse(StatusCodes.Status404NotFound, "Not found or not a participant", typeof(ErrorResponse))]
+    public async Task<ActionResult<AppointmentResource>> UpdateStatus(long id,
+        [FromBody] UpdateAppointmentStatusResource resource)
+    {
+        var details = await appointmentCommandService.Handle(new UpdateAppointmentStatusCommand(id, resource.Status));
+        return Ok(AppointmentResourceFromEntityAssembler.ToResourceFromEntity(details));
     }
 }

@@ -1,71 +1,114 @@
 using System.Net.Mime;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Localization;
+using neurozen.API.Professionals.Domain.Model.Commands;
 using neurozen.API.Professionals.Domain.Model.Queries;
 using neurozen.API.Professionals.Domain.Services;
 using neurozen.API.Professionals.Interfaces.REST.Resources;
 using neurozen.API.Professionals.Interfaces.REST.Transform;
-using neurozen.API.Resources;
+using neurozen.API.Shared.Application.Security;
+using neurozen.API.Shared.Domain.Model.Security;
+using neurozen.API.Shared.Infrastructure.Interfaces.ASP.ErrorHandling;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace neurozen.API.Professionals.Interfaces.REST;
 
+/// <summary>
+///     Public directory (only VERIFIED professionals exist for patients) and the psychologist portal (/me).
+/// </summary>
 [ApiController]
-[Route("api/v1/[controller]")]
+[Route("api/v1/professionals")]
 [Produces(MediaTypeNames.Application.Json)]
 [Tags("Professionals")]
 public class ProfessionalsController(
-  IProfessionalCommandService professionalCommandService,
-  IProfessionalQueryService professionalQueryService,
-  IStringLocalizer<SharedResource> _localizer) : ControllerBase
+    IProfessionalQueryService professionalQueryService,
+    IProfessionalProfileCommandService professionalProfileCommandService,
+    IReviewCommandService reviewCommandService,
+    IReviewQueryService reviewQueryService,
+    ICurrentUser currentUser) : ControllerBase
 {
-  [HttpGet]
-  [SwaggerOperation(
-      Summary = "Get all professionals",
-      Description = "Retrieves all professionals"
-    )]
-  [SwaggerResponse(200, "Professionals retrieved", typeof(IEnumerable<ProfessionalResource>))]
-  [SwaggerResponse(500, "Internal server error")]
-  public async Task<ActionResult<IEnumerable<ProfessionalResource>>> GetAllProfessionals()
-  {
-    String msg = _localizer.GetString("GetAllProfessionalsError");
-    var getAllProfessionalsQuery = new GetAllProfessionalsQuery();
-    var result = await professionalQueryService.Handle(getAllProfessionalsQuery);
-    if (result == null) return Ok(Array.Empty<ProfessionalResource>());
-    var professionals = result.Select(ProfessionalResourceFromEntityAssembler.ToResourceFromEntity);
-    return Ok(professionals);
-  }
+    [HttpGet]
+    [Authorize(Policy = AppPolicies.VerifiedIfPsychologist)]
+    [SwaggerOperation(Summary = "Directory of verified professionals")]
+    [SwaggerResponse(StatusCodes.Status200OK, "Verified professionals", typeof(IEnumerable<ProfessionalResource>))]
+    public async Task<ActionResult<IEnumerable<ProfessionalResource>>> GetAllProfessionals()
+    {
+        var professionals = await professionalQueryService.Handle(new GetAllProfessionalsQuery());
+        return Ok(professionals.Select(ProfessionalResourceFromEntityAssembler.ToResourceFromEntity));
+    }
 
-  [HttpPost]
-  [SwaggerOperation(
-      Summary = "Create a new professional",
-      Description = "Creates a new professional with the provided details."
-    )]
-  [SwaggerResponse(201, "Professional created successfully", typeof(ProfessionalResource))]
-  [SwaggerResponse(400, "Professional creation failed")]
-  public async Task<ActionResult> CreateProfessional([FromBody] CreateProfessionalResource resource)
-  {
-    string msg = _localizer.GetString("CreateProfessionalError");
-    var createProfessionalCommand = CreateProfessionalCommandFromResourceAssembler.ToCommandFromResource(resource);
+    [HttpGet("{id:long}")]
+    [Authorize(Policy = AppPolicies.VerifiedIfPsychologist)]
+    [SwaggerOperation(Summary = "Verified professional by id")]
+    [SwaggerResponse(StatusCodes.Status200OK, "The professional", typeof(ProfessionalResource))]
+    [SwaggerResponse(StatusCodes.Status404NotFound, "Does not exist or is not verified", typeof(ErrorResponse))]
+    public async Task<ActionResult<ProfessionalResource>> GetProfessionalById(long id)
+    {
+        var professional = await professionalQueryService.Handle(new GetProfessionalByIdQuery(id));
+        return Ok(ProfessionalResourceFromEntityAssembler.ToResourceFromEntity(professional));
+    }
 
-    var result = await professionalCommandService.Handle(createProfessionalCommand);
+    [HttpGet("{id:long}/available-slots")]
+    [Authorize(Policy = AppPolicies.VerifiedIfPsychologist)]
+    [SwaggerOperation(Summary = "Free 1-hour slots (Lima time, HH:mm) for a date (YYYY-MM-DD)")]
+    [SwaggerResponse(StatusCodes.Status200OK, "Free slots", typeof(IEnumerable<string>))]
+    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid date", typeof(ErrorResponse))]
+    [SwaggerResponse(StatusCodes.Status404NotFound, "Does not exist or is not verified", typeof(ErrorResponse))]
+    public async Task<ActionResult<IEnumerable<string>>> GetAvailableSlots(long id, [FromQuery] string? date)
+    {
+        return Ok(await professionalQueryService.Handle(new GetAvailableSlotsQuery(id, date)));
+    }
 
-    if (result is null) return BadRequest(new { message = msg});
-    return CreatedAtAction(nameof(GetProfessionalById), new { id = result.Id }, ProfessionalResourceFromEntityAssembler.ToResourceFromEntity(result));
-  }
+    [HttpGet("{id:long}/reviews")]
+    [Authorize(Policy = AppPolicies.VerifiedIfPsychologist)]
+    [SwaggerOperation(Summary = "Reviews of a verified professional, most recent first")]
+    [SwaggerResponse(StatusCodes.Status200OK, "Reviews", typeof(IEnumerable<ReviewResource>))]
+    [SwaggerResponse(StatusCodes.Status404NotFound, "Does not exist or is not verified", typeof(ErrorResponse))]
+    public async Task<ActionResult<IEnumerable<ReviewResource>>> GetReviews(long id)
+    {
+        var reviews = await reviewQueryService.Handle(new GetProfessionalReviewsQuery(id));
+        return Ok(reviews.Select(ReviewResourceAssembler.ToResource));
+    }
 
-  [HttpGet("{id}")]
-  [SwaggerOperation(
-        Summary = "Get professional by ID",
-        Description = "Retrieves a professional by its unique ID.")]
-  [SwaggerResponse(200, "Professional retrieved successfully", typeof(ProfessionalResource))]
-  [SwaggerResponse(404, "Professional not found")]
-  public async Task<ActionResult> GetProfessionalById(int id)
-  {
-    string msg = _localizer.GetString("GetProfessionalByIdError");
-    var getAppointmentByIdQuery = new GetProfessionalByIdQuery(id);
-    var result = await professionalQueryService.Handle(getAppointmentByIdQuery);
-    if (result is null) return BadRequest(new { message = msg });
-    return Ok(ProfessionalResourceFromEntityAssembler.ToResourceFromEntity(result));
-  }
+    [HttpPost("{id:long}/reviews")]
+    [Authorize(Roles = AppRoles.User)]
+    [SwaggerOperation(Summary = "Rate one of my COMPLETED sessions with this professional (one review per appointment)",
+        Description = "Marks appointment.reviewed = true and recomputes the professional's rating and reviews.")]
+    [SwaggerResponse(StatusCodes.Status201Created, "Created", typeof(ReviewResource))]
+    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid data or session not completed", typeof(ErrorResponse))]
+    [SwaggerResponse(StatusCodes.Status404NotFound, "Professional not found", typeof(ErrorResponse))]
+    [SwaggerResponse(StatusCodes.Status409Conflict, "Already reviewed", typeof(ErrorResponse))]
+    public async Task<ActionResult<ReviewResource>> CreateReview(long id, [FromBody] CreateReviewResource resource)
+    {
+        var review = await reviewCommandService.Handle(
+            new CreateReviewCommand(id, resource.AppointmentId, resource.Rating, resource.Comment));
+        return StatusCode(StatusCodes.Status201Created, ReviewResourceAssembler.ToResource(review));
+    }
+
+    [HttpGet("me")]
+    [Authorize(Roles = AppRoles.Psychologist)]
+    [SwaggerOperation(Summary = "My professional profile (any verification status)")]
+    [SwaggerResponse(StatusCodes.Status200OK, "My profile", typeof(MyProfessionalProfileResource))]
+    [SwaggerResponse(StatusCodes.Status404NotFound, "The account has no professional profile", typeof(ErrorResponse))]
+    public async Task<ActionResult<MyProfessionalProfileResource>> GetMyProfile()
+    {
+        var details = await professionalQueryService.Handle(new GetMyProfessionalProfileQuery(currentUser.Id));
+        return Ok(MyProfessionalProfileResourceFromEntityAssembler.ToResourceFromEntity(details));
+    }
+
+    [HttpPut("me")]
+    [Authorize(Roles = AppRoles.Psychologist)]
+    [SwaggerOperation(Summary = "Update my whole professional profile",
+        Description = "Changing the license number or full name, or re-submitting a REJECTED request, " +
+                      "sets the status back to PENDING.")]
+    [SwaggerResponse(StatusCodes.Status200OK, "Updated profile", typeof(MyProfessionalProfileResource))]
+    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid data", typeof(ErrorResponse))]
+    [SwaggerResponse(StatusCodes.Status409Conflict, "License number of another account", typeof(ErrorResponse))]
+    public async Task<ActionResult<MyProfessionalProfileResource>> UpdateMyProfile(
+        [FromBody] UpdateMyProfessionalProfileResource resource)
+    {
+        var details = await professionalProfileCommandService.Handle(
+            UpdateMyProfessionalProfileCommandFromResourceAssembler.ToCommandFromResource(currentUser.Id, resource));
+        return Ok(MyProfessionalProfileResourceFromEntityAssembler.ToResourceFromEntity(details));
+    }
 }

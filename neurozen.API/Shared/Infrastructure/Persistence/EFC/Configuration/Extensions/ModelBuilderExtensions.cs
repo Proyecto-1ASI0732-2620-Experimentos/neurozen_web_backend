@@ -1,30 +1,24 @@
 using Microsoft.EntityFrameworkCore;
+using neurozen.API.Shared.Infrastructure.Persistence.EFC.Converters;
 
 namespace neurozen.API.Shared.Infrastructure.Persistence.EFC.Configuration.Extensions;
 
 /// <summary>
-///     Model builder extensions
+///     Model builder extensions. Must run AFTER every entity configuration has been applied,
+///     otherwise there are no entity types to visit.
 /// </summary>
-/// <remarks>
-///     This class contains extension methods for the model builder.
-///     It includes a method to use the snake case and/or plural naming convention according to an object type.
-///     It also pluralizes the table names.
-/// </remarks>
 public static class ModelBuilderExtensions
 {
     /// <summary>
-    ///     Use snake case naming convention
+    ///     Converts table, column, key, foreign key and index names to snake_case.
+    ///     Table names are not pluralized: every configuration sets its table name explicitly.
     /// </summary>
-    /// <remarks>
-    ///     This method sets the naming convention for the database tables, columns, keys, foreign keys and indexes to snake
-    ///     case.
-    /// </remarks>
     public static void UseSnakeCaseNamingConvention(this ModelBuilder builder)
     {
         foreach (var entity in builder.Model.GetEntityTypes())
         {
             var tableName = entity.GetTableName();
-            if (!string.IsNullOrEmpty(tableName)) entity.SetTableName(tableName.ToPlural().ToSnakeCase());
+            if (!string.IsNullOrEmpty(tableName)) entity.SetTableName(tableName.ToSnakeCase());
 
             foreach (var property in entity.GetProperties())
                 property.SetColumnName(property.GetColumnName().ToSnakeCase());
@@ -47,5 +41,15 @@ public static class ModelBuilderExtensions
                 if (!string.IsNullOrEmpty(indexDatabaseName)) index.SetDatabaseName(indexDatabaseName.ToSnakeCase());
             }
         }
+    }
+
+    /// <summary>Stores and reads every DateTime / DateTime? as UTC.</summary>
+    public static void UseUtcDateTimes(this ModelBuilder builder)
+    {
+        var converter = new UtcDateTimeConverter();
+        foreach (var entity in builder.Model.GetEntityTypes())
+        foreach (var property in entity.GetProperties())
+            if (property.ClrType == typeof(DateTime) || property.ClrType == typeof(DateTime?))
+                property.SetValueConverter(converter);
     }
 }

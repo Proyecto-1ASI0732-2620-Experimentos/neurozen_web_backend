@@ -1,35 +1,19 @@
-using neurozen.API.Shared.Domain.Repositories;
 using neurozen.API.IAM.Domain.Model.Aggregates;
+using neurozen.API.Shared.Domain.Repositories;
 
 namespace neurozen.API.IAM.Domain.Repositories;
 
-/**
- * <summary>
- *     The user repository
- * </summary>
- * <remarks>
- *     This repository is used to manage users
- * </remarks>
- */
 public interface IUserRepository : IBaseRepository<User>
 {
-    /**
-     * <summary>
-     *     Find a user by id
-     * </summary>
-     * <param name="username">The username to search</param>
-     * <returns>The user</returns>
-     */
-    Task<User?> FindByUsernameAsync(string username);
+    /// <summary>Finds a user by email (expects an already normalized email).</summary>
+    Task<User?> FindByEmailAsync(string email);
 
-    Task<User?> FindByIdAsync(Guid id);
+    Task<bool> ExistsByEmailAsync(string email);
 
-    /**
-     * <summary>
-     *     Check if a user exists by username
-     * </summary>
-     * <param name="username">The username to search</param>
-     * <returns>True if the user exists, false otherwise</returns>
-     */
-    bool ExistsByUsername(string username);
+    Task<IReadOnlyList<User>> ListByIdsAsync(IReadOnlyCollection<long> ids);
+
+    Task<bool> ExistsByEmailForOtherUserAsync(string email, long excludedUserId);
+
+    /// <summary>True only for active (not deleted) accounts. Used to reject tokens of deleted accounts.</summary>
+    Task<bool> ExistsByIdAsync(long id);
 }

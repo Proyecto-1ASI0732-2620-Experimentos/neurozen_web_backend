@@ -1,31 +1,35 @@
-using neurozen.API.IAM.Domain.Model.Commands;
-using neurozen.API.IAM.Domain.Model.Queries;
-using neurozen.API.IAM.Domain.Services;
+using neurozen.API.IAM.Domain.Model.ValueObjects;
+using neurozen.API.IAM.Domain.Repositories;
+using neurozen.API.Shared.Domain.Model.Exceptions;
 
 namespace neurozen.API.IAM.Interfaces.ACL.Services;
 
-public class IamContextFacade(IUserCommandService userCommandService, IUserQueryService userQueryService) : IIamContextFacade
+public class IamContextFacade(IUserRepository userRepository) : IIamContextFacade
 {
-    public async Task<Guid> CreateUser(string username, string password)
+    public async Task<UserSummary?> FetchUserSummaryAsync(long userId)
     {
-        var signUpCommand = new SignUpCommand(username, password);
-        await userCommandService.Handle(signUpCommand);
-        var getUserByUsernameQuery = new GetUserByUsernameQuery(username);
-        var result = await userQueryService.Handle(getUserByUsernameQuery);
-        return result?.Id ?? Guid.Empty;
+        var user = await userRepository.FindByIdAsync(userId);
+        return user is null ? null : new UserSummary(user.Id, user.FullName, user.Email, user.IsDeleted);
     }
 
-    public async Task<Guid> FetchUserIdByUsername(string username)
+    public async Task<IReadOnlyDictionary<long, UserSummary>> FetchUserSummariesAsync(IEnumerable<long> userIds)
     {
-        var getUserByUsernameQuery = new GetUserByUsernameQuery(username);
-        var result = await userQueryService.Handle(getUserByUsernameQuery);
-        return result?.Id ?? Guid.Empty;
+        var ids = userIds.Distinct().ToList();
+        if (ids.Count == 0) return new Dictionary<long, UserSummary>();
+
+        var users = await userRepository.ListByIdsAsync(ids);
+        return users.ToDictionary(
+            user => user.Id,
+            user => new UserSummary(user.Id, user.FullName, user.Email, user.IsDeleted));
     }
 
-    public async Task<string> FetchUsernameByUserId(Guid userId)
+    public void ValidateFullName(string fullName, string field, ValidationErrors errors) =>
+        PersonName.Validate(fullName, field, errors);
+
+    public async Task ChangeFullNameAsync(long userId, string fullName)
     {
-        var getUserByIdQuery = new GetUserByIdQuery(userId);
-        var result = await userQueryService.Handle(getUserByIdQuery);
-        return result?.Username ?? string.Empty;
+        var user = await userRepository.FindByIdAsync(userId)
+                   ?? throw new ResourceNotFoundException("La cuenta no existe");
+        user.ChangeFullName(fullName);
     }
 }

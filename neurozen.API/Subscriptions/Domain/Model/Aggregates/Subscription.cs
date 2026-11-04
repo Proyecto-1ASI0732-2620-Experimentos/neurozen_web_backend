@@ -1,60 +1,67 @@
-﻿using neurozen.API.Subscriptions.Domain.Model.Commands;
-
 namespace neurozen.API.Subscriptions.Domain.Model.Aggregates;
 
-public partial class Subscription
+/// <summary>
+///     Plan subscription of a user (one per user). Stores only the last 4 digits and the expiry of the card;
+///     never the full number nor the CVV.
+/// </summary>
+public class Subscription
 {
+    public const int MinPlanId = 1;
+    public const int MaxPlanId = 3;
+    public const int NameMaxLength = 60;
+    public const int EmailMaxLength = 254;
+
     protected Subscription()
     {
-        UserId = 0; // 👈 nuevo campo inicializado
-        PlanId = 0;
-        NameUser = string.Empty;
-        LastNameUser = string.Empty;
-        EmailUser = string.Empty;
-        NumberCard = string.Empty;
-        ExpirationDate = string.Empty;
-        Cvv = string.Empty;
-        IsActive = false; // 👈 Valor por defecto false
+        HolderFirstName = string.Empty;
+        HolderLastName = string.Empty;
+        Email = string.Empty;
+        CardLast4 = string.Empty;
+        CardExpiry = string.Empty;
     }
 
-    public Subscription(CreateSubscriptionCommand command)
+    public Subscription(long userId, int planId, string holderFirstName, string holderLastName, string email,
+        string cardLast4, string cardExpiry)
     {
-        UserId = command.UserId; // 👈 agregado
-        PlanId = command.PlanId;
-        NameUser = command.NameUser;
-        LastNameUser = command.LastNameUser;
-        EmailUser = command.EmailUser;
-        NumberCard = command.NumberCard;
-        ExpirationDate = command.ExpirationDate;
-        Cvv = command.Cvv;
-        IsActive = command.IsActive; 
+        UserId = userId;
+        CreatedAt = DateTime.UtcNow;
+        HolderFirstName = holderFirstName;
+        HolderLastName = holderLastName;
+        Email = email;
+        CardLast4 = cardLast4;
+        CardExpiry = cardExpiry;
+        Apply(planId, holderFirstName, holderLastName, email, cardLast4, cardExpiry);
     }
 
-    public int Id { get; private set; }
-    public int UserId { get; private set; }   // 👈 nuevo campo
+    public long Id { get; private set; }
+    public long UserId { get; private set; }
     public int PlanId { get; private set; }
-    public string NameUser { get; private set; }
-    public string LastNameUser { get; private set; }
-    public string EmailUser { get; private set; }
-    public string NumberCard { get; private set; }
-    public string ExpirationDate { get; private set; }
-    public string Cvv { get; private set; }
-    
-    public bool? IsActive { get; set; }
-    
+    public string HolderFirstName { get; private set; }
+    public string HolderLastName { get; private set; }
+    public string Email { get; private set; }
+    public string CardLast4 { get; private set; }
+
+    /// <summary>"MM/YY".</summary>
+    public string CardExpiry { get; private set; }
+
+    public bool IsActive { get; private set; }
+    public DateTime CreatedAt { get; private set; }
+    public DateTime UpdatedAt { get; private set; }
+
     /// <summary>
-    /// Activa la suscripción después de ser guardada exitosamente
+    ///     Sets the plan and card data. There is no payment gateway yet, so a subscription whose data
+    ///     passes validation is considered paid and active.
     /// </summary>
-    public void Activate()
+    public void Apply(int planId, string holderFirstName, string holderLastName, string email, string cardLast4,
+        string cardExpiry)
     {
+        PlanId = planId;
+        HolderFirstName = holderFirstName;
+        HolderLastName = holderLastName;
+        Email = email;
+        CardLast4 = cardLast4;
+        CardExpiry = cardExpiry;
         IsActive = true;
-    }
-    
-    /// <summary>
-    /// Desactiva la suscripción
-    /// </summary>
-    public void Deactivate()
-    {
-        IsActive = false;
+        UpdatedAt = DateTime.UtcNow;
     }
 }

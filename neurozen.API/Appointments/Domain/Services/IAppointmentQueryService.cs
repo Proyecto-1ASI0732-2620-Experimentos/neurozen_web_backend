@@ -1,12 +1,11 @@
-﻿using neurozen.API.Appointments.Domain.Model.Aggregates;
 using neurozen.API.Appointments.Domain.Model.Queries;
+using neurozen.API.Appointments.Domain.Model.ReadModels;
 
 namespace neurozen.API.Appointments.Domain.Services;
 
 public interface IAppointmentQueryService
 {
-    
-    Task<IEnumerable<Appointment>> Handle(GetAllAppointmentsQueryByPatientId query);
-    
-    Task<Appointment?> Handle(GetAppointmentByIdQuery query);
+    Task<IReadOnlyList<AppointmentDetails>> Handle(GetAppointmentsQuery query);
+
+    Task<AppointmentDetails> Handle(GetAppointmentByIdQuery query);
 }

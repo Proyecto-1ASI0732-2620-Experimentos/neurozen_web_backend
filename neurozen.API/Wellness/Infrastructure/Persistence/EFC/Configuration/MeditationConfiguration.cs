@@ -10,11 +10,11 @@ public class MeditationConfiguration : IEntityTypeConfiguration<Meditation>
     {
         builder.ToTable("meditations");
         builder.HasKey(meditation => meditation.Id);
-        builder.Property(meditation => meditation.Id).HasColumnName("id").ValueGeneratedOnAdd();
-        builder.Property(meditation => meditation.Title).HasColumnName("title").HasMaxLength(200).IsRequired();
-        builder.Property(meditation => meditation.Description).HasColumnName("description").HasMaxLength(1000).IsRequired();
-        builder.Property(meditation => meditation.DurationMinutes).HasColumnName("duration_minutes").IsRequired();
-        builder.Property(meditation => meditation.ImageUrl).HasColumnName("image_url").HasMaxLength(500).IsRequired();
-        builder.Property(meditation => meditation.AudioUrl).HasColumnName("audio_url").HasMaxLength(500).IsRequired();
+        builder.Property(meditation => meditation.Id).ValueGeneratedOnAdd();
+        builder.Property(meditation => meditation.Title).HasMaxLength(200).IsRequired();
+        builder.Property(meditation => meditation.Description).HasMaxLength(1000).IsRequired();
+        builder.Property(meditation => meditation.DurationMinutes).IsRequired();
+        builder.Property(meditation => meditation.ImageUrl).HasMaxLength(500).IsRequired();
+        builder.Property(meditation => meditation.AudioUrl).HasMaxLength(500).IsRequired();
     }
 }

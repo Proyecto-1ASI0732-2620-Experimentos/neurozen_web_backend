@@ -1,13 +1,16 @@
-﻿using neurozen.API.Appointments.Domain.Model.Aggregates;
+using neurozen.API.Appointments.Domain.Model.Aggregates;
 using neurozen.API.Shared.Domain.Repositories;
 
 namespace neurozen.API.Appointments.Domain.Repositories;
 
 public interface IAppointmentRepository : IBaseRepository<Appointment>
 {
-    /// <summary>
-    ///     Get all appointments by patient id and professional id
-    /// </summary>
-    /// <returns>An enumerable with all appointments</returns>
-    Task<IEnumerable<Appointment>> GetAllAppointmentsQueryByPatientId(int patientId);
+    /// <summary>Ordered by date ascending.</summary>
+    Task<IReadOnlyList<Appointment>> ListByPatientIdAsync(long patientId);
+
+    /// <summary>Ordered by date ascending.</summary>
+    Task<IReadOnlyList<Appointment>> ListByProfessionalIdAsync(long professionalId);
+
+    /// <summary>True if a PENDING or CONFIRMED appointment already takes this professional's slot.</summary>
+    Task<bool> IsSlotTakenAsync(long professionalId, DateTime startUtc);
 }

@@ -1,62 +1,72 @@
 using System.Net.Mime;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using neurozen.API.IAM.Domain.Model.Commands;
 using neurozen.API.IAM.Domain.Services;
-using neurozen.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
 using neurozen.API.IAM.Interfaces.REST.Resources;
 using neurozen.API.IAM.Interfaces.REST.Transform;
+using neurozen.API.Shared.Infrastructure.Interfaces.ASP.ErrorHandling;
+using neurozen.API.Shared.Infrastructure.Interfaces.ASP.RateLimiting;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace neurozen.API.IAM.Interfaces.REST;
 
-[Authorize]
 [ApiController]
-[Route("api/v1/[controller]")]
+[AllowAnonymous]
+[Route("api/v1/authentication")]
 [Produces(MediaTypeNames.Application.Json)]
-[SwaggerTag("Available Authentication endpoints")]
-public class AuthenticationController(IUserCommandService userCommandService) : ControllerBase
+[SwaggerTag("Public authentication endpoints")]
+public class AuthenticationController(
+    IUserCommandService userCommandService,
+    IPasswordResetCommandService passwordResetCommandService) : ControllerBase
 {
-    /**
-     * <summary>
-     *     Sign in endpoint. It allows authenticating a user
-     * </summary>
-     * <param name="signInResource">The sign-in resource containing username and password.</param>
-     * <returns>The authenticated user resource, including a JWT token</returns>
-     */
     [HttpPost("sign-in")]
-    [AllowAnonymous]
-    [SwaggerOperation(
-        Summary = "Sign in",
-        Description = "Sign in a user",
-        OperationId = "SignIn")]
-    [SwaggerResponse(StatusCodes.Status200OK, "The user was authenticated", typeof(AuthenticatedUserResource))]
-    public async Task<IActionResult> SignIn([FromBody] SignInResource signInResource)
+    [EnableRateLimiting(RateLimitPolicies.Authentication)]
+    [SwaggerOperation(Summary = "Sign in with email (sent as username) and password", OperationId = "SignIn")]
+    [SwaggerResponse(StatusCodes.Status200OK, "Authenticated", typeof(AuthenticatedUserResource))]
+    [SwaggerResponse(StatusCodes.Status401Unauthorized, "Wrong credentials", typeof(ErrorResponse))]
+    public async Task<ActionResult<AuthenticatedUserResource>> SignIn([FromBody] SignInResource resource)
     {
-        var signInCommand = SignInCommandFromResourceAssembler.ToCommandFromResource(signInResource);
-        var authenticatedUser = await userCommandService.Handle(signInCommand);
-        var resource =
-            AuthenticatedUserResourceFromEntityAssembler.ToResourceFromEntity(authenticatedUser.user,
-                authenticatedUser.token);
-        return Ok(resource);
+        var authenticated = await userCommandService.Handle(
+            SignInCommandFromResourceAssembler.ToCommandFromResource(resource));
+        return Ok(AuthenticatedUserResourceFromEntityAssembler.ToResourceFromEntity(authenticated));
     }
 
-    /**
-     * <summary>
-     *     Sign up endpoint. It allows creating a new user
-     * </summary>
-     * <param name="signUpResource">The sign-up resource containing username and password.</param>
-     * <returns>A confirmation message on successful creation.</returns>
-     */
     [HttpPost("sign-up")]
-    [AllowAnonymous]
-    [SwaggerOperation(
-        Summary = "Sign-up",
-        Description = "Sign up a new user",
-        OperationId = "SignUp")]
-    [SwaggerResponse(StatusCodes.Status200OK, "The user was created successfully")]
-    public async Task<IActionResult> SignUp([FromBody] SignUpResource signUpResource)
+    [EnableRateLimiting(RateLimitPolicies.Authentication)]
+    [SwaggerOperation(Summary = "Create a USER or PSYCHOLOGIST account", OperationId = "SignUp")]
+    [SwaggerResponse(StatusCodes.Status201Created, "Created and authenticated", typeof(AuthenticatedUserResource))]
+    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid data", typeof(ErrorResponse))]
+    [SwaggerResponse(StatusCodes.Status409Conflict, "Email or license number already registered", typeof(ErrorResponse))]
+    public async Task<ActionResult<AuthenticatedUserResource>> SignUp([FromBody] SignUpResource resource)
     {
-        var signUpCommand = SignUpCommandFromResourceAssembler.ToCommandFromResource(signUpResource);
-        await userCommandService.Handle(signUpCommand);
-        return Ok(new { message = "User created successfully" });
+        var authenticated = await userCommandService.Handle(
+            SignUpCommandFromResourceAssembler.ToCommandFromResource(resource));
+        var body = AuthenticatedUserResourceFromEntityAssembler.ToResourceFromEntity(authenticated);
+        return Created($"/api/v1/users/{body.Id}", body);
+    }
+
+    [HttpPost("forgot-password")]
+    [EnableRateLimiting(RateLimitPolicies.PasswordReset)]
+    [SwaggerOperation(Summary = "Request a reset link. Always 200, whether or not the account exists",
+        OperationId = "ForgotPassword")]
+    [SwaggerResponse(StatusCodes.Status200OK, "Accepted", typeof(MessageResource))]
+    public async Task<ActionResult<MessageResource>> ForgotPassword([FromBody] ForgotPasswordResource resource)
+    {
+        await passwordResetCommandService.Handle(new ForgotPasswordCommand(resource.Email));
+        return Ok(new MessageResource("ok"));
+    }
+
+    [HttpPost("reset-password")]
+    [EnableRateLimiting(RateLimitPolicies.PasswordReset)]
+    [SwaggerOperation(Summary = "Set a new password with a one-time token", OperationId = "ResetPassword")]
+    [SwaggerResponse(StatusCodes.Status200OK, "Password changed", typeof(MessageResource))]
+    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid/used/expired token or weak password",
+        typeof(ErrorResponse))]
+    public async Task<ActionResult<MessageResource>> ResetPassword([FromBody] ResetPasswordResource resource)
+    {
+        await passwordResetCommandService.Handle(new ResetPasswordCommand(resource.Token, resource.NewPassword));
+        return Ok(new MessageResource("ok"));
     }
 }

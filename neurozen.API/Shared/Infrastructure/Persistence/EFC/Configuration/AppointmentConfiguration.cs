@@ -1,1 +1,0 @@
-﻿// This file is not used. Appointment configuration is in Appointments bounded context.

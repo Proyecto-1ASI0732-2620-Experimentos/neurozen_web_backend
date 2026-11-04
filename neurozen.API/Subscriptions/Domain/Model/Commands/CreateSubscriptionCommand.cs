@@ -1,3 +1,12 @@
-﻿namespace neurozen.API.Subscriptions.Domain.Model.Commands;
+namespace neurozen.API.Subscriptions.Domain.Model.Commands;
 
-public record CreateSubscriptionCommand(int UserId,int PlanId, string NameUser, string LastNameUser, string EmailUser, string NumberCard, string ExpirationDate, string Cvv, bool IsActive);
+/// <summary>NumberCard and Cvv only live in memory during validation. isActive from the client is ignored.</summary>
+public record CreateSubscriptionCommand(
+    long? UserId,
+    int? PlanId,
+    string? NameUser,
+    string? LastNameUser,
+    string? EmailUser,
+    string? NumberCard,
+    string? ExpirationDate,
+    string? Cvv);

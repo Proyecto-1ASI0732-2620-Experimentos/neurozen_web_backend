@@ -1,67 +1,57 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Localization;
-using neurozen.API.Resources;
-using neurozen.API.ResourcesLibrary.Domain.Model.Commands;
-using neurozen.API.ResourcesLibrary.Domain.Repositories;
+using System.Net.Mime;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using neurozen.API.ResourcesLibrary.Domain.Model.Queries;
 using neurozen.API.ResourcesLibrary.Domain.Services;
 using neurozen.API.ResourcesLibrary.Interfaces.REST.Resources;
 using neurozen.API.ResourcesLibrary.Interfaces.REST.Transform;
+using neurozen.API.Shared.Domain.Model.Security;
+using neurozen.API.Shared.Infrastructure.Interfaces.ASP.ErrorHandling;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace neurozen.API.ResourcesLibrary.Interfaces.REST;
 
 [ApiController]
-[Route("api/v1/resource-libraries")]  // ← Ruta explícita consistente
-[Produces("application/json")]
-public class ResourceLibrariesController : ControllerBase
+[Route("api/v1")]
+[Produces(MediaTypeNames.Application.Json)]
+[Tags("Resource library")]
+public class ResourcesLibraryController(
+    IResourceLibraryQueryService queryService,
+    IResourceLibraryCommandService commandService) : ControllerBase
 {
-    private readonly IResourceLibraryCommandService _commandService;
-    private readonly IResourceLibraryRepository _repository;
-    private readonly IStringLocalizer<SharedResource> _localizer;
-
-    public ResourceLibrariesController(
-        IResourceLibraryCommandService commandService,
-        IResourceLibraryRepository repository,
-        IStringLocalizer<SharedResource> localizer)
+    [HttpGet("resource-libraries")]
+    [Authorize(Policy = AppPolicies.VerifiedIfPsychologist)]
+    [SwaggerOperation(Summary = "Wellness resources (duration in minutes)")]
+    [SwaggerResponse(StatusCodes.Status200OK, "Resources", typeof(IEnumerable<ResourceLibraryResource>))]
+    public async Task<ActionResult<IEnumerable<ResourceLibraryResource>>> GetAll()
     {
-        _commandService = commandService;
-        _repository = repository;
-        _localizer = localizer;
+        var resources = await queryService.Handle(new GetAllResourceLibrariesQuery());
+        return Ok(resources.Select(ResourceLibraryAssembler.ToResource));
     }
 
-    [HttpPost]
-    public async Task<IActionResult> CreateResourceLibrary([FromBody] CreateResourceLibraryResource resource)
+    [HttpGet("resource-libraries/{id:long}")]
+    [HttpGet("resources/{id:long}")]
+    [Authorize(Policy = AppPolicies.VerifiedIfPsychologist)]
+    [SwaggerOperation(Summary = "Resource detail with its plain-text content (alias: /resources/{id})")]
+    [SwaggerResponse(StatusCodes.Status200OK, "The resource", typeof(ResourceLibraryDetailResource))]
+    [SwaggerResponse(StatusCodes.Status404NotFound, "Not found", typeof(ErrorResponse))]
+    public async Task<ActionResult<ResourceLibraryDetailResource>> GetById(long id)
     {
-        String msg = _localizer.GetString("CreateResourceLibraryError");
-        var command = CreateResourceLibraryCommandFromResourceAssembler.ToCommandFromResource(resource);
-        var result = await _commandService.Handle(command);
-
-        if (result is null)
-            return BadRequest(new{ message = msg });
-
-        var resourceLibraryResource = ResourceLibraryResourceFromEntityAssembler.ToResourceFromEntity(result);
-        return CreatedAtAction(nameof(GetResourceLibraryById), new { id = result.Id }, resourceLibraryResource);
+        var resource = await queryService.Handle(new GetResourceLibraryByIdQuery(id));
+        return Ok(ResourceLibraryAssembler.ToDetailResource(resource));
     }
 
-    [HttpGet("{id:int}")]
-    public async Task<IActionResult> GetResourceLibraryById(int id)
+    // Not part of the frontend contract: content management is restricted to ADMIN.
+    [HttpPost("resource-libraries")]
+    [Authorize(Roles = AppRoles.Admin)]
+    [SwaggerOperation(Summary = "Create a resource (ADMIN)")]
+    [SwaggerResponse(StatusCodes.Status201Created, "Created", typeof(ResourceLibraryDetailResource))]
+    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid data", typeof(ErrorResponse))]
+    public async Task<ActionResult<ResourceLibraryDetailResource>> Create(
+        [FromBody] CreateResourceLibraryResource resource)
     {
-        String msg = _localizer.GetString("GetResourceLibraryByIdError");
-        var result = await _repository.FindByIdAsync(id);
-
-        if (result is null)
-            return NotFound(new { message = msg });
-
-        var resource = ResourceLibraryResourceFromEntityAssembler.ToResourceFromEntity(result);
-        return Ok(resource);
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> GetAllResourceLibraries()
-    {
-        String msg = _localizer.GetString("GetAllResourceLibrariesError");
-        var results = await _repository.ListAsync();
-        if (results == null) return Ok(Array.Empty<ResourceLibraryResource>());
-        var resources = results.Select(ResourceLibraryResourceFromEntityAssembler.ToResourceFromEntity);
-        return Ok(resources);
+        var created = await commandService.Handle(ResourceLibraryAssembler.ToCommand(resource));
+        var body = ResourceLibraryAssembler.ToDetailResource(created);
+        return CreatedAtAction(nameof(GetById), new { id = body.Id }, body);
     }
 }

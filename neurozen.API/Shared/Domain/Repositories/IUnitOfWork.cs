@@ -3,13 +3,14 @@ namespace neurozen.API.Shared.Domain.Repositories;
 /// <summary>
 ///     Unit of work interface
 /// </summary>
-/// <remarks>
-///     This interface defines the basic operations for a unit of work
-/// </remarks>
 public interface IUnitOfWork
 {
-    /// <summary>
-    ///     Commit changes to the database
-    /// </summary>
+    /// <summary>Commit pending changes to the database.</summary>
     Task CompleteAsync();
+
+    /// <summary>
+    ///     Runs <paramref name="operation" /> inside a database transaction (commit on success,
+    ///     rollback on any exception). Nested calls reuse the outer transaction.
+    /// </summary>
+    Task ExecuteInTransactionAsync(Func<Task> operation, CancellationToken cancellationToken = default);
 }

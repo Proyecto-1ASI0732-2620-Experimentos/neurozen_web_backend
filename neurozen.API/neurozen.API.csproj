@@ -5,6 +5,7 @@
         <Nullable>enable</Nullable>
         <PreserveCompilationContext>true</PreserveCompilationContext>
         <ImplicitUsings>enable</ImplicitUsings>
+        <UserSecretsId>neurozen-api-6f1c2a9e</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
@@ -24,36 +25,10 @@
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Payments\" />
-      <Folder Include="ProfessionalConnection\" />
-      <Folder Include="Stress\" />
-      <Folder Include="Triggers\Application\Internal\QueryServices\" />
-      <Folder Include="Triggers\Domain\Model\Queries\" />
-      <Folder Include="Professionals\Interfaces\REST\Resources\" />
-      <Folder Include="Professionals\Interfaces\REST\Transform\" />
-      <Folder Include="Professionals\Interfaces\REST\Resources\" />
-      <Folder Include="Professionals\Interfaces\REST\Transform\" />
-      <Folder Include="UserManagement\" />
-    </ItemGroup>
-
     <!-- Exclude local tools folder from project compilation to avoid duplicate assembly attributes -->
     <ItemGroup>
       <Compile Remove="tools\\**\\*.cs" />
       <None Remove="tools\\**\\*" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <EmbeddedResource Update="Resources\SharedResource.en-US.resx">
-        <Generator>ResXFileCodeGenerator</Generator>
-        <LastGenOutput>SharedResource.en-US.Designer.cs</LastGenOutput>
-        <DependentUpon>SharedResource.cs</DependentUpon>
-      </EmbeddedResource>
-      <EmbeddedResource Update="Resources\SharedResource.es-PE.resx">
-        <Generator>ResXFileCodeGenerator</Generator>
-        <LastGenOutput>SharedResource.es-PE.Designer.cs</LastGenOutput>
-        <DependentUpon>SharedResource.cs</DependentUpon>
-      </EmbeddedResource>
     </ItemGroup>
 
 </Project>

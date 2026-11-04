@@ -2,4 +2,9 @@ bin/
 obj/
 /packages/
 riderModule.iml
-/_ReSharper.Caches/
+/_ReSharper.Caches/# Development emails written to disk (contain password-reset links)
+**/dev-mail/
+
+# Test results and coverage
+**/TestResults/
+coverage*.xml

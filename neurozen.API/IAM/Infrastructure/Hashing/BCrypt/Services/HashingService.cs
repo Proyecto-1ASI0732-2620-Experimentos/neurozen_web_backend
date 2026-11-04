@@ -3,35 +3,31 @@ using BCryptNet = BCrypt.Net.BCrypt;
 
 namespace neurozen.API.IAM.Infrastructure.Hashing.BCrypt.Services;
 
-/**
- * <summary>
- *     This class is responsible for hashing and validating passwords.
- * </summary>
- */
+/// <summary>BCrypt with an explicit work factor (cost ≥ 11 required by the specification).</summary>
 public class HashingService : IHashingService
 {
-    /**
-     * <summary>
-     *     This method hashes a password.
-     * </summary>
-     * <param name="password">The password to passwordHash.</param>
-     * <returns>The hashed password.</returns>
-     */
-    public string HashPassword(string password)
-    {
-        return BCryptNet.HashPassword(password);
-    }
+    public const int WorkFactor = 12;
 
-    /**
-     * <summary>
-     *     This method validates a password against a passwordHash.
-     * </summary>
-     * <param name="password">The password to validate.</param>
-     * <param name="passwordHash">The passwordHash to validate against.</param>
-     * <returns>True if the password is valid, false otherwise.</returns>
-     */
-    public bool VerifyPassword(string password, string passwordHash)
+    private static readonly Lazy<string> DummyHash =
+        new(() => BCryptNet.HashPassword(Guid.NewGuid().ToString("N"), WorkFactor));
+
+    public string HashPassword(string password) => BCryptNet.HashPassword(password, WorkFactor);
+
+    public bool VerifyPassword(string password, string? passwordHash)
     {
-        return BCryptNet.Verify(password, passwordHash);
+        if (string.IsNullOrEmpty(passwordHash))
+        {
+            BCryptNet.Verify(password, DummyHash.Value);
+            return false;
+        }
+
+        try
+        {
+            return BCryptNet.Verify(password, passwordHash);
+        }
+        catch (global::BCrypt.Net.SaltParseException)
+        {
+            return false;
+        }
     }
 }

@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using neurozen.API.IAM.Domain.Model.Aggregates;
+using neurozen.API.IAM.Infrastructure.Persistence.EFC.Configuration;
 
 namespace neurozen.API.IAM.Infrastructure.Persistence.EFC.Configuration.Extensions;
 
@@ -7,8 +7,7 @@ public static class ModelBuilderExtensions
 {
     public static void ApplyIamConfiguration(this ModelBuilder builder)
     {
-        // IAM Context - User entity is configured in UserManagement bounded context
-        // Ignore IAM User entity to avoid conflicts with UserManagement.User mapped to 'users' table
-        builder.Ignore<User>();
+        builder.ApplyConfiguration(new UserConfiguration());
+        builder.ApplyConfiguration(new PasswordResetTokenConfiguration());
     }
 }

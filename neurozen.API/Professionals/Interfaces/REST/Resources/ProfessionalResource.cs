@@ -1,3 +1,19 @@
 namespace neurozen.API.Professionals.Interfaces.REST.Resources;
 
-public record ProfessionalResource(int Id, string Name, string Specialty, string Experience, int Rating, int Reviews, int Price, string Availability, string Bio, string Image);
+/// <summary>
+///     Public directory entry (GET /professionals, GET /professionals/{id}).
+///     Never includes licenseNumber or email.
+/// </summary>
+public record ProfessionalResource(
+    long Id,
+    long UserId,
+    string Name,
+    string Specialty,
+    string Bio,
+    int? ExperienceYears,
+    decimal? Price,
+    decimal Rating,
+    int Reviews,
+    string Availability,
+    string Image,
+    string VerificationStatus);

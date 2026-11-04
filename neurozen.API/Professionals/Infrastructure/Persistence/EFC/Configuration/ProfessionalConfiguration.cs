@@ -1,6 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using neurozen.API.IAM.Domain.Model.Aggregates;
 using neurozen.API.Professionals.Domain.Model.Aggregates;
+using neurozen.API.Professionals.Domain.Model.ValueObjects;
 
 namespace neurozen.API.Professionals.Infrastructure.Persistence.EFC.Configuration;
 
@@ -8,58 +12,72 @@ public class ProfessionalConfiguration : IEntityTypeConfiguration<Professional>
 {
     public void Configure(EntityTypeBuilder<Professional> builder)
     {
-        builder.ToTable("Professionals");
+        builder.ToTable("professionals");
 
-        // Primary key
         builder.HasKey(p => p.Id);
-        builder.Property(p => p.Id)
-            .HasColumnName("Id")
-            .ValueGeneratedOnAdd();
+        builder.Property(p => p.Id).ValueGeneratedOnAdd();
 
-        // Name
-        builder.Property(p => p.Name)
-            .IsRequired()
-            .HasMaxLength(255)
-            .HasColumnName("Name");
+        builder.Property(p => p.UserId).IsRequired();
+        builder.HasIndex(p => p.UserId).IsUnique().HasDatabaseName("ux_professionals_user_id");
+        builder.HasOne<User>()
+            .WithOne()
+            .HasForeignKey<Professional>(p => p.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
 
-        // Specialty
         builder.Property(p => p.Specialty)
-            .IsRequired()
-            .HasMaxLength(255)
-            .HasColumnName("Specialty");
+            .HasConversion(v => v.ToWire(), v => SpecialtyExtensions.FromWire(v))
+            .HasMaxLength(30)
+            .IsRequired();
 
-        // Experience
-        builder.Property(p => p.Experience)
-            .IsRequired()
-            .HasMaxLength(255)
-            .HasColumnName("Experience");
+        // Nullable only for deleted accounts; MySQL unique indexes allow several NULLs.
+        builder.Property(p => p.LicenseNumber).HasMaxLength(Professional.LicenseNumberMaxLength).IsRequired(false);
+        builder.HasIndex(p => p.LicenseNumber).IsUnique().HasDatabaseName("ux_professionals_license_number");
 
-        // Rating
-        builder.Property(p => p.Rating)
-            .HasColumnName("Rating");
+        builder.Property(p => p.VerificationStatus)
+            .HasConversion(v => v.ToWire(), v => VerificationStatusExtensions.FromWire(v))
+            .HasMaxLength(10)
+            .IsRequired();
+        builder.HasIndex(p => p.VerificationStatus).HasDatabaseName("ix_professionals_verification_status");
 
-        // Reviews
-        builder.Property(p => p.Reviews)
-            .HasColumnName("Reviews");
+        builder.Property(p => p.RejectionReason).HasMaxLength(Professional.RejectionReasonMaxLength);
+        builder.Property(p => p.VerifiedAt);
+        builder.Property(p => p.VerifiedBy);
+        builder.Property(p => p.Bio).HasMaxLength(Professional.BioMaxLength);
+        builder.Property(p => p.ExperienceYears);
+        builder.Property(p => p.Price).HasPrecision(7, 2);
 
-        // Price
-        builder.Property(p => p.Price)
-            .HasColumnName("Price");
+        builder.Property(p => p.AvailabilitySchedule)
+            .HasConversion(
+                v => AvailabilityScheduleJson.Serialize(v),
+                v => AvailabilityScheduleJson.Deserialize(v),
+                new ValueComparer<AvailabilitySchedule?>(
+                    (a, b) => AvailabilityScheduleJson.Serialize(a) == AvailabilityScheduleJson.Serialize(b),
+                    v => AvailabilityScheduleJson.Serialize(v).GetHashCode(),
+                    v => AvailabilityScheduleJson.Deserialize(AvailabilityScheduleJson.Serialize(v))))
+            .HasColumnType("json");
 
-        // Availability
-        builder.Property(p => p.Availability)
-            .IsRequired()
-            .HasMaxLength(255)
-            .HasColumnName("Availability");
+        builder.Property(p => p.Availability).HasMaxLength(Professional.AvailabilityMaxLength);
+        builder.Property(p => p.Rating).HasPrecision(2, 1).IsRequired();
+        builder.Property(p => p.ReviewsCount).IsRequired();
+        builder.Property(p => p.Image).HasMaxLength(Professional.ImageMaxLength);
+        builder.Property(p => p.CreatedAt).IsRequired();
+        builder.Property(p => p.UpdatedAt).IsRequired();
+        builder.Property(p => p.DeletedAt);
 
-        // Bio
-        builder.Property(p => p.Bio)
-            .IsRequired()
-            .HasColumnName("Bio");
-
-        // Image
-        builder.Property(p => p.Image)
-            .IsRequired()
-            .HasColumnName("Image");
+        builder.Ignore(p => p.IsVerified);
+        builder.Ignore(p => p.IsDeleted);
+        builder.Ignore(p => p.IsVisibleToPatients);
     }
+}
+
+/// <summary>JSON (de)serialization of the availability schedule column.</summary>
+internal static class AvailabilityScheduleJson
+{
+    private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);
+
+    public static string Serialize(AvailabilitySchedule? value) =>
+        value is null ? string.Empty : JsonSerializer.Serialize(value, Options);
+
+    public static AvailabilitySchedule? Deserialize(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : JsonSerializer.Deserialize<AvailabilitySchedule>(value, Options);
 }

@@ -1,98 +1,112 @@
-using neurozen.API.Shared.Infrastructure.Persistence.EFC.Configuration;
-// IAM imports
-using neurozen.API.IAM.Infrastructure.Tokens.JWT.Configuration;
-using neurozen.API.IAM.Infrastructure.Tokens.JWT.Services;
-using neurozen.API.IAM.Application.Internal.OutboundServices;
-using neurozen.API.IAM.Infrastructure.Hashing.BCrypt.Services;
-using neurozen.API.IAM.Infrastructure.Persistence.EFC.Repositories;
-using neurozen.API.IAM.Application.Internal.CommandServices;
-using neurozen.API.IAM.Application.Internal.QueryServices;
-using neurozen.API.IAM.Infrastructure.Pipeline.Middleware.Extensions;
-using neurozen.API.IAM.Infrastructure.Pipeline.Middleware.Attributes;
-// IAM domain interfaces (ensure interface types are in scope)
-using neurozen.API.IAM.Domain.Repositories;
-using neurozen.API.IAM.Domain.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using neurozen.API.Appointments.Application.Internal;
+using neurozen.API.Appointments.Application.Internal.AccountDeletion;
 using neurozen.API.Appointments.Application.Internal.CommandServices;
 using neurozen.API.Appointments.Application.Internal.QueryServices;
 using neurozen.API.Appointments.Domain.Repositories;
 using neurozen.API.Appointments.Domain.Services;
+using neurozen.API.Appointments.Interfaces.ACL;
+using neurozen.API.Appointments.Interfaces.ACL.Services;
 using neurozen.API.Appointments.Infrastructure.Repositories;
+using neurozen.API.IAM.Application.Internal.AccountDeletion;
+using neurozen.API.IAM.Application.Internal.CommandServices;
+using neurozen.API.IAM.Application.Internal.Configuration;
+using neurozen.API.IAM.Application.Internal.OutboundServices;
+using neurozen.API.IAM.Application.Internal.QueryServices;
+using neurozen.API.IAM.Domain.Repositories;
+using neurozen.API.IAM.Domain.Services;
+using neurozen.API.IAM.Infrastructure.Email;
+using neurozen.API.IAM.Infrastructure.Hashing.BCrypt.Services;
+using neurozen.API.IAM.Infrastructure.Persistence.EFC.Repositories;
+using neurozen.API.IAM.Infrastructure.Seeding;
+using neurozen.API.IAM.Infrastructure.Throttling;
+using neurozen.API.IAM.Infrastructure.Tokens.JWT.Configuration;
+using neurozen.API.IAM.Infrastructure.Tokens.JWT.Extensions;
+using neurozen.API.IAM.Infrastructure.Tokens.JWT.Services;
+using neurozen.API.IAM.Interfaces.ACL;
+using neurozen.API.IAM.Interfaces.ACL.Services;
+using neurozen.API.Professionals.Application.Internal.AccountDeletion;
 using neurozen.API.Professionals.Application.Internal.CommandServices;
 using neurozen.API.Professionals.Application.Internal.QueryServices;
 using neurozen.API.Professionals.Domain.Repositories;
 using neurozen.API.Professionals.Domain.Services;
+using neurozen.API.Professionals.Infrastructure.Authorization;
 using neurozen.API.Professionals.Infrastructure.Repositories;
-using neurozen.API.Resources;
+using neurozen.API.Professionals.Interfaces.ACL;
+using neurozen.API.Professionals.Interfaces.ACL.Services;
 using neurozen.API.ResourcesLibrary.Application.Internal.CommandServices;
+using neurozen.API.ResourcesLibrary.Application.Internal.QueryServices;
 using neurozen.API.ResourcesLibrary.Domain.Repositories;
 using neurozen.API.ResourcesLibrary.Domain.Services;
 using neurozen.API.ResourcesLibrary.Infrastructure.Repositories;
-using neurozen.API.Triggers.Application.Internal.CommandServices;
-using neurozen.API.Triggers.Domain.Repositories;
-using neurozen.API.Triggers.Domain.Services;
-using neurozen.API.Triggers.Infraestructure.Respositories;
+using neurozen.API.ResourcesLibrary.Infrastructure.Seeding;
+using neurozen.API.Shared.Application.Accounts;
+using neurozen.API.Shared.Application.Security;
+using neurozen.API.Shared.Domain.Repositories;
+using neurozen.API.Shared.Infrastructure.Interfaces.ASP.ErrorHandling;
+using neurozen.API.Shared.Infrastructure.Interfaces.ASP.Json;
+using neurozen.API.Shared.Infrastructure.Interfaces.ASP.RateLimiting;
+using neurozen.API.Shared.Infrastructure.Interfaces.ASP.Security;
+using neurozen.API.Shared.Infrastructure.Persistence.EFC.Configuration;
+using neurozen.API.Shared.Infrastructure.Persistence.EFC.Repositories;
+using neurozen.API.Shared.Infrastructure.Seeding;
+using neurozen.API.Stress.Application.Internal.CommandServices;
+using neurozen.API.Stress.Application.Internal.QueryServices;
+using neurozen.API.Stress.Domain.Repositories;
+using neurozen.API.Stress.Domain.Services;
+using neurozen.API.Stress.Infrastructure.AccountDeletion;
+using neurozen.API.Stress.Infrastructure.Repositories;
 using neurozen.API.Subscriptions.Application.Internal.CommandServices;
+using neurozen.API.Subscriptions.Application.Internal.QueryServices;
 using neurozen.API.Subscriptions.Domain.Repositories;
 using neurozen.API.Subscriptions.Domain.Services;
-using neurozen.API.Subscriptions.Infraestructure.Respositories;
-using neurozen.API.Shared.Domain.Repositories;
-using neurozen.API.Shared.Infrastructure.Interfaces.ASP.Configuration;
-using neurozen.API.Shared.Infrastructure.Persistence.EFC.Repositories;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using Microsoft.OpenApi.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc.Authorization;
+using neurozen.API.Subscriptions.Infrastructure.AccountDeletion;
+using neurozen.API.Subscriptions.Infrastructure.Repositories;
+using neurozen.API.Wellness.Infrastructure.AccountDeletion;
+using neurozen.API.Wellness.Infrastructure.Seeding;
 
 var builder = WebApplication.CreateBuilder(args);
+var configuration = builder.Configuration;
+var environment = builder.Environment;
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
+// ---------------------------------------------------------------- Web / JSON / errors
 builder.Services.AddRouting(options => options.LowercaseUrls = true);
-builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddMemoryCache();
 
-// Allow the local mobile frontend to call the API during development.
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("LocalDevelopment", policy =>
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new UtcDateTimeJsonConverter()))
+    .ConfigureApiBehaviorOptions(options =>
+        options.InvalidModelStateResponseFactory = InvalidModelStateResponse.Create);
+
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
+// ---------------------------------------------------------------- CORS (only the frontend origins)
+const string frontendCorsPolicy = "Frontend";
+var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() is { Length: > 0 } origins
+    ? origins
+    : new[] { "http://localhost:5173", "http://localhost:4173", "https://neurozen-web-frontend.vercel.app" };
+builder.Services.AddCors(options => options.AddPolicy(frontendCorsPolicy, policy =>
+    policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod()));
+
+// ---------------------------------------------------------------- Reverse proxy (production behind TLS)
+if (configuration.GetValue("ForwardedHeaders:Enabled", false))
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
-        policy.AllowAnyOrigin()
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.ForwardLimit = 1;
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
     });
-});
 
-// Add controllers and apply a global authorization filter so every endpoint requires
-// authorization by default. Controllers/actions decorated with [AllowAnonymous]
-// will skip this filter.
-builder.Services.AddControllers(options =>
-{
-    // Require authenticated user by default for all controllers; AllowAnonymous will opt-out.
-    options.Filters.Add(new AuthorizeFilter(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build()));
-}).AddDataAnnotationsLocalization(options =>
-{
-    options.DataAnnotationLocalizerProvider = (type, factory) =>
-    {
-        return factory.Create(typeof(SharedResource));
-    };
-});
-
-//Localization
-
-builder.Services.AddLocalization();
-var LocalizationOptions = new RequestLocalizationOptions();
-
-
-LocalizationOptions.SetDefaultCulture("es-PE");
-LocalizationOptions.AddSupportedCultures("es-PE", "en-US");
-LocalizationOptions.AddSupportedUICultures("es-PE", "en-US");
-LocalizationOptions.ApplyCurrentCultureToResponseHeaders = true;
-
-// Enable Swashbuckle and configure JWT Bearer support in Swagger UI
+// ---------------------------------------------------------------- Swagger
+builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.EnableAnnotations();
@@ -103,9 +117,8 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Enter 'Bearer' [space] and then your valid token"
+        Description = "JWT obtained from /api/v1/authentication/sign-in"
     });
-
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -113,142 +126,149 @@ builder.Services.AddSwaggerGen(options =>
             {
                 Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
             },
-            new string[] { }
+            Array.Empty<string>()
         }
     });
 });
 
+// ---------------------------------------------------------------- Database (no sensitive data logging)
+var connectionString = configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException(
+        "ConnectionStrings:DefaultConnection is not set. Use the ConnectionStrings__DefaultConnection " +
+        "environment variable or dotnet user-secrets.");
 
-// Register AppDbContext for all environments so DI is available during startup.
-builder.Services.AddDbContext<AppDbContext>(
-    options =>
-    {
-        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-        // Verify Database Connection String
-        if (connectionString is null)
-            // Stop the application if the connection string is not set.
-            throw new Exception("Database connection string is not set.");
-        options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString))
-            .LogTo(Console.WriteLine, LogLevel.Information)
-            .EnableSensitiveDataLogging()
-            .EnableDetailedErrors();
-    });
+// Database:ServerVersion (e.g. "8.0.36-mysql") avoids a connection at startup just to detect the version.
+var serverVersion = string.IsNullOrWhiteSpace(configuration["Database:ServerVersion"])
+    ? ServerVersion.AutoDetect(connectionString)
+    : ServerVersion.Parse(configuration["Database:ServerVersion"]);
+builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(connectionString, serverVersion));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-// IAM / Identity registrations
-// Bind TokenSettings from configuration
-builder.Services.Configure<TokenSettings>(builder.Configuration.GetSection("TokenSettings"));
+// ---------------------------------------------------------------- Security
+builder.Services.Configure<TokenSettings>(configuration.GetSection("TokenSettings"));
+builder.Services.AddJwtAuthentication(configuration, environment);
+builder.Services.AddApiRateLimiting(configuration);
+builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
+builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, ApiAuthorizationResultHandler>();
+builder.Services.AddProfessionalAuthorization();
 
+// ---------------------------------------------------------------- IAM
+builder.Services.Configure<PasswordResetSettings>(configuration.GetSection("PasswordReset"));
+builder.Services.Configure<EmailSettings>(configuration.GetSection("Email"));
 builder.Services.AddScoped<ITokenService, TokenService>();
-builder.Services.AddScoped<IHashingService, HashingService>();
+builder.Services.AddSingleton<IHashingService, HashingService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
 builder.Services.AddScoped<IUserCommandService, UserCommandService>();
+builder.Services.AddScoped<IPasswordResetCommandService, PasswordResetCommandService>();
 builder.Services.AddScoped<IUserQueryService, UserQueryService>();
+builder.Services.AddScoped<IUserAccountCommandService, UserAccountCommandService>();
+builder.Services.AddSingleton<IPasswordResetThrottle, MemoryPasswordResetThrottle>();
+builder.Services.AddSingleton<BackgroundEmailQueue>();
+builder.Services.AddSingleton<IEmailQueue>(services => services.GetRequiredService<BackgroundEmailQueue>());
+builder.Services.AddHostedService<EmailDispatcherService>();
+builder.Services.AddScoped<IIamContextFacade, IamContextFacade>();
 
-// Configure JWT authentication
-var tokenSecret = builder.Configuration["TokenSettings:Secret"] ?? Environment.GetEnvironmentVariable("TokenSettings__Secret");
-if (string.IsNullOrEmpty(tokenSecret))
-    throw new Exception("TokenSettings:Secret must be provided via configuration or TokenSettings__Secret env var");
-var key = Encoding.ASCII.GetBytes(tokenSecret);
+// ---------------------------------------------------------------- Professionals
+builder.Services.AddScoped<IProfessionalRepository, ProfessionalRepository>();
+builder.Services.AddScoped<IVerificationAuditRepository, VerificationAuditRepository>();
+builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
+builder.Services.AddScoped<IReviewCommandService, ReviewCommandService>();
+builder.Services.AddScoped<IReviewQueryService, ReviewQueryService>();
+builder.Services.AddScoped<IProfessionalQueryService, ProfessionalQueryService>();
+builder.Services.AddScoped<IProfessionalProfileCommandService, ProfessionalProfileCommandService>();
+builder.Services.AddScoped<IProfessionalVerificationCommandService, ProfessionalVerificationCommandService>();
+builder.Services.AddScoped<IProfessionalsContextFacade, ProfessionalsContextFacade>();
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-}).AddJwtBearer(options =>
-{
-    options.RequireHttpsMetadata = false;
-    options.SaveToken = true;
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = false,
-        ValidateAudience = false,
-        ClockSkew = TimeSpan.Zero
-    };
-});
-
-// Appointments services
+// ---------------------------------------------------------------- Appointments
 builder.Services.AddScoped<IAppointmentRepository, AppointmentRepository>();
+builder.Services.AddScoped<AppointmentAccess>();
 builder.Services.AddScoped<IAppointmentCommandService, AppointmentCommandService>();
 builder.Services.AddScoped<IAppointmentQueryService, AppointmentQueryService>();
+builder.Services.AddScoped<IAppointmentsContextFacade, AppointmentsContextFacade>();
 
-// Professionals services
-builder.Services.AddScoped<IProfessionalRepository, ProfessionalRepository>();
-builder.Services.AddScoped<IProfessionalCommandService, ProfessionalCommandService>();
-builder.Services.AddScoped<IProfessionalQueryService, ProfessionalQueryService>();
+// ---------------------------------------------------------------- Stress: triggers, assessments, reports
+builder.Services.AddScoped<IStressTriggerRepository, StressTriggerRepository>();
+builder.Services.AddScoped<IAssessmentRepository, AssessmentRepository>();
+builder.Services.AddScoped<IReportRepository, ReportRepository>();
+builder.Services.AddScoped<IStressTriggerCommandService, StressTriggerCommandService>();
+builder.Services.AddScoped<IStressTriggerQueryService, StressTriggerQueryService>();
+builder.Services.AddScoped<IAssessmentCommandService, AssessmentCommandService>();
+builder.Services.AddScoped<IAssessmentQueryService, AssessmentQueryService>();
+builder.Services.AddScoped<IReportCommandService, ReportCommandService>();
+builder.Services.AddScoped<IReportQueryService, ReportQueryService>();
 
-// Resource library services
+// ---------------------------------------------------------------- Resource library
 builder.Services.AddScoped<IResourceLibraryRepository, ResourceLibraryRepository>();
 builder.Services.AddScoped<IResourceLibraryCommandService, ResourceLibraryCommandService>();
+builder.Services.AddScoped<IResourceLibraryQueryService, ResourceLibraryQueryService>();
 
-// Triggers services
-builder.Services.AddScoped<ITriggerRepository, TriggerRepository>();
-builder.Services.AddScoped<ITriggerCommandService, TriggerCommandService>();
-
-// Subscriptions services
-builder.Services.AddScoped<ISubscriptionRepository, SubcriptionRepository>();
+// ---------------------------------------------------------------- Subscriptions
+builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 builder.Services.AddScoped<ISubscriptionCommandService, SubscriptionCommandService>();
+builder.Services.AddScoped<ISubscriptionQueryService, SubscriptionQueryService>();
+
+// ---------------------------------------------------------------- Account deletion participants (one per context)
+builder.Services.AddScoped<IUserDataEraser, WellnessUserDataEraser>();
+builder.Services.AddScoped<IUserDataEraser, SubscriptionUserDataEraser>();
+builder.Services.AddScoped<IUserDataEraser, StressUserDataEraser>();
+builder.Services.AddScoped<IUserDataEraser, AppointmentUserDataEraser>();
+builder.Services.AddScoped<IUserDataEraser, ProfessionalUserDataEraser>();
+builder.Services.AddScoped<IUserDataEraser, IamUserDataEraser>();
 
 var app = builder.Build();
 
-app.MapGet("/health", () => Results.Ok(new { status = "healthy" }))
-    .AllowAnonymous();
-
-// Verify Database Objects are created
-using (var scope = app.Services.CreateScope())
+// ---------------------------------------------------------------- Database migrations + seeding
+await using (var scope = app.Services.CreateAsyncScope())
 {
     var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
     var context = services.GetRequiredService<AppDbContext>();
-    context.Database.EnsureCreated();
-    context.Database.ExecuteSqlRaw("""
-        CREATE TABLE IF NOT EXISTS meditations (
-            id INT NOT NULL AUTO_INCREMENT,
-            title VARCHAR(200) NOT NULL,
-            description VARCHAR(1000) NOT NULL,
-            duration_minutes INT NOT NULL,
-            image_url VARCHAR(500) NOT NULL,
-            audio_url VARCHAR(500) NOT NULL,
-            PRIMARY KEY (id)
-        ) CHARACTER SET utf8mb4;
 
-        CREATE TABLE IF NOT EXISTS health_metrics (
-            id INT NOT NULL AUTO_INCREMENT,
-            user_id CHAR(36) NOT NULL,
-            stress_level INT NOT NULL,
-            heart_rate INT NULL,
-            sleep_hours DECIMAL(4, 1) NULL,
-            notes VARCHAR(1000) NULL,
-            created_at DATETIME(6) NOT NULL,
-            PRIMARY KEY (id),
-            INDEX idx_health_metrics_user_id (user_id),
-            INDEX idx_health_metrics_created_at (created_at)
-        ) CHARACTER SET utf8mb4;
-
-        INSERT INTO meditations (title, description, duration_minutes, image_url, audio_url)
-        SELECT 'Calma Mental y Mindfulness',
-               'Sesion guiada para reducir la rumiacion cognitiva.',
-               15,
-               'https://images.unsplash.com/photo-1518199266791',
-               'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
-        WHERE NOT EXISTS (SELECT 1 FROM meditations);
-        """);
+    if (context.Database.GetMigrations().Any())
+    {
+        await context.Database.MigrateAsync();
+        await IdentitySeeder.SeedAdminAsync(services, configuration, logger);
+        await DemoDataSeeder.SeedAsync(services, configuration, logger);
+        await ResourceLibrarySeeder.SeedAsync(services, configuration);
+        await WellnessSeeder.SeedAsync(context);
+    }
+    else
+    {
+        logger.LogWarning("No EF Core migrations found; the database was not created. " +
+                          "Run: dotnet ef migrations add InitialCreate");
+    }
 }
-app.UseRequestLocalization(LocalizationOptions);
-app.UseHttpsRedirection();
-app.UseCors("LocalDevelopment");
-// Authentication middleware must run before authorization
+
+// ---------------------------------------------------------------- HTTP pipeline
+if (configuration.GetValue("ForwardedHeaders:Enabled", false))
+    app.UseForwardedHeaders();
+
+app.UseExceptionHandler();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
+if (app.Environment.IsDevelopment() || configuration.GetValue("Swagger:Enabled", false))
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseCors(frontendCorsPolicy);
+app.UseRateLimiter();
 app.UseAuthentication();
-// Custom request authorization middleware (validates JWT and sets HttpContext.Items["User"])
-app.UseRequestAuthorization();
 app.UseAuthorization();
+
+app.MapGet("/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
 app.MapControllers();
-
-app.UseSwagger();
-app.UseSwaggerUI();
-
 
 app.Run();
 
-public partial class Program { }
+public partial class Program
+{
+}

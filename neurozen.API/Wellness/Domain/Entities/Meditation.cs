@@ -10,7 +10,16 @@ public class Meditation
         AudioUrl = string.Empty;
     }
 
-    public int Id { get; private set; }
+    public Meditation(string title, string description, int durationMinutes, string imageUrl, string audioUrl)
+    {
+        Title = title;
+        Description = description;
+        DurationMinutes = durationMinutes;
+        ImageUrl = imageUrl;
+        AudioUrl = audioUrl;
+    }
+
+    public long Id { get; private set; }
     public string Title { get; private set; }
     public string Description { get; private set; }
     public int DurationMinutes { get; private set; }

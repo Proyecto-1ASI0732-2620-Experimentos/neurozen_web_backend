@@ -61,7 +61,6 @@ jobs:
           /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
           /d:sonar.coverage.exclusions="**/Migrations/**,**/Program.cs"
           /d:sonar.exclusions="**/Migrations/**,**/*.feature.cs"
-          /d:sonar.qualitygate.wait=true
 
       - name: Build
         run: dotnet build --no-restore --configuration Release

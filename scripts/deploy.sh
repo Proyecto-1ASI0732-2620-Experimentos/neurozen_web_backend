@@ -34,11 +34,14 @@ if curl -s -f http://127.0.0.1:18080/health; then
   docker rm -f $CANDIDATE
   echo "=> ¡Despliegue Cero-Downtime exitoso!"
 else
-  echo "=> Smoke test FALLÓ. Abortando despliegue para proteger producción."
-  echo "=> --- LOGS DEL CONTENEDOR CANDIDATO ---"
-  docker logs $CANDIDATE
-  echo "=> -------------------------------------"
+  echo "=> Smoke test FALLÓ. Abortando despliegue."
+  echo "=> Estado real del contenedor:"
+  docker inspect -f 'Status: {{.State.Status}} | ExitCode: {{.State.ExitCode}} | Error: {{.State.Error}}' $CANDIDATE
+  echo "=> --- LOGS COMPLETOS ---"
+  docker logs $CANDIDATE 2>&1
+  echo "=> ----------------------"
+  echo "=> Prueba de red detallada (Curl):"
+  curl -v http://127.0.0.1:18080/health || true
   docker rm -f $CANDIDATE
   exit 1
-fi
 fi

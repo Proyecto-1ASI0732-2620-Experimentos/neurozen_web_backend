@@ -22,4 +22,14 @@ public class UserRepository(AppDbContext context) : BaseRepository<User>(context
 
     public Task<bool> ExistsByIdAsync(long id) =>
         Context.Set<User>().AnyAsync(u => u.Id == id && u.DeletedAt == null);
+
+    public async Task<(string SecurityStamp, bool IsDeleted)?> GetSecurityStampAndDeletedStatusAsync(long id)
+    {
+        var row = await Context.Set<User>()
+            .Where(u => u.Id == id)
+            .Select(u => new { u.SecurityStamp, u.DeletedAt })
+            .SingleOrDefaultAsync();
+
+        return row is null ? null : (row.SecurityStamp, row.DeletedAt != null);
+    }
 }

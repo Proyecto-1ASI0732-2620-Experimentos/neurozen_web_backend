@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: neurozen-api
+    env: docker
+    plan: starter
+    branch: main
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true

@@ -49,18 +49,29 @@ public class ReviewCommandService(
 
         // Review, appointment.reviewed and the professional's rating/reviews change together.
         // The unique index on reviews.appointment_id still protects concurrent submissions (409).
+        ReviewDetails? result = null;
         await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
+            var trackedProfessional = await professionalRepository.FindByIdAsync(professional.Id)
+                ?? throw new ResourceNotFoundException("El profesional no existe");
+            var trackedAppointment = await appointmentsContextFacade.FindAppointmentAsync(appointment.Id)
+                ?? throw new ResourceNotFoundException("La cita no existe");
+
+            if (trackedAppointment.Reviewed || await reviewRepository.ExistsByAppointmentIdAsync(trackedAppointment.Id))
+                throw new ConflictException(DuplicateMessage);
+
             await reviewRepository.AddAsync(review);
             await unitOfWork.CompleteAsync();
 
-            var statistics = await reviewRepository.GetStatisticsAsync(professional.Id);
-            professional.ApplyReviewStatistics(statistics.AverageRating, statistics.Count);
-            await appointmentsContextFacade.MarkReviewedAsync(appointment.Id);
+            var statistics = await reviewRepository.GetStatisticsAsync(trackedProfessional.Id);
+            trackedProfessional.ApplyReviewStatistics(statistics.AverageRating, statistics.Count);
+            await appointmentsContextFacade.MarkReviewedAsync(trackedAppointment.Id);
             await unitOfWork.CompleteAsync();
+
+            var patient = await iamContextFacade.FetchUserSummaryAsync(currentUser.Id);
+            result = new ReviewDetails(review, patient?.AbbreviatedName ?? string.Empty);
         });
 
-        var patient = await iamContextFacade.FetchUserSummaryAsync(currentUser.Id);
-        return new ReviewDetails(review, patient?.AbbreviatedName ?? string.Empty);
+        return result ?? throw new InvalidOperationException("Failed to create review");
     }
 }

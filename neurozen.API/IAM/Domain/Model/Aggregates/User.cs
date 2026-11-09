@@ -18,6 +18,7 @@ public class User
         Email = string.Empty;
         PasswordHash = string.Empty;
         FullName = string.Empty;
+        SecurityStamp = Guid.NewGuid().ToString("N");
     }
 
     public User(string email, string passwordHash, string fullName, UserRole role, DateTime acceptedTermsAt)
@@ -27,6 +28,7 @@ public class User
         FullName = fullName.Trim();
         Role = role;
         AcceptedTermsAt = acceptedTermsAt;
+        SecurityStamp = Guid.NewGuid().ToString("N");
         CreatedAt = DateTime.UtcNow;
         UpdatedAt = CreatedAt;
     }
@@ -34,6 +36,7 @@ public class User
     public long Id { get; private set; }
     public string Email { get; private set; }
     public string PasswordHash { get; private set; }
+    public string SecurityStamp { get; private set; }
     public string FullName { get; private set; }
     public UserRole Role { get; private set; }
     public string? PhoneNumber { get; private set; }
@@ -53,6 +56,7 @@ public class User
     public void UpdatePasswordHash(string passwordHash)
     {
         PasswordHash = passwordHash;
+        RegenerateSecurityStamp();
         Touch();
     }
 
@@ -64,8 +68,11 @@ public class User
 
     /// <summary>Replaces the editable profile with already validated values. Role and password are not editable here.</summary>
     public void UpdateProfile(string email, string fullName, string? phoneNumber, string? address, string? avatarUrl,
-        DateOnly? dateOfBirth, string? ageRange, string? occupation, string? workType)
+        DateOnly? dateOfBirth, string? ageRange, string? occupation, string? workType, bool emailChanged = false)
     {
+        if (emailChanged)
+            RegenerateSecurityStamp();
+
         Email = EmailAddress.Normalize(email);
         FullName = fullName.Trim();
         PhoneNumber = phoneNumber;
@@ -86,6 +93,7 @@ public class User
     {
         Email = EmailAddress.ForDeletedAccount(Id);
         PasswordHash = string.Empty;
+        SecurityStamp = Guid.NewGuid().ToString("N");
         FullName = DeletedUserName;
         PhoneNumber = null;
         Address = null;
@@ -97,6 +105,8 @@ public class User
         DeletedAt = nowUtc;
         UpdatedAt = nowUtc;
     }
+
+    public void RegenerateSecurityStamp() => SecurityStamp = Guid.NewGuid().ToString("N");
 
     public void Touch() => UpdatedAt = DateTime.UtcNow;
 }

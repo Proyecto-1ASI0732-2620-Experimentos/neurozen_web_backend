@@ -32,15 +32,20 @@ public class AppointmentsController(
 
     [HttpGet]
     [SwaggerOperation(Summary = "My appointments: ?patientId= (USER, own id) or ?professionalId= (verified psychologist, own profile)",
-        Description = "Ordered by date ascending. patientName/patientEmail are included for the psychologist.")]
+        Description = "Ordered by date ascending. Optional page/pageSize pagination (pageSize capped at 100); " +
+                      "without either parameter, returns the full list. patientName/patientEmail are included for the psychologist.")]
     [SwaggerResponse(StatusCodes.Status200OK, "Appointments", typeof(IEnumerable<AppointmentResource>))]
     [SwaggerResponse(StatusCodes.Status400BadRequest, "Neither or both filters", typeof(ErrorResponse))]
     [SwaggerResponse(StatusCodes.Status403Forbidden, "Not your appointments", typeof(ErrorResponse))]
     public async Task<ActionResult<IEnumerable<AppointmentResource>>> GetAppointments(
-        [FromQuery] long? patientId, [FromQuery] long? professionalId)
+        [FromQuery] long? patientId, [FromQuery] long? professionalId,
+        [FromQuery] int? page, [FromQuery] int? pageSize)
     {
-        var appointments = await appointmentQueryService.Handle(new GetAppointmentsQuery(patientId, professionalId));
-        return Ok(appointments.Select(AppointmentResourceFromEntityAssembler.ToResourceFromEntity));
+        var appointments = await appointmentQueryService.Handle(
+            new GetAppointmentsQuery(patientId, professionalId, page, pageSize));
+        if (appointments.TotalCount is { } totalCount)
+            Response.Headers["X-Total-Count"] = totalCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return Ok(appointments.Items.Select(AppointmentResourceFromEntityAssembler.ToResourceFromEntity));
     }
 
     [HttpGet("{id:long}")]

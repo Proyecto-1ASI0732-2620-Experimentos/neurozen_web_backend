@@ -31,10 +31,22 @@ public class ProfessionalsController(
     [Authorize(Policy = AppPolicies.VerifiedIfPsychologist)]
     [SwaggerOperation(Summary = "Directory of verified professionals")]
     [SwaggerResponse(StatusCodes.Status200OK, "Verified professionals", typeof(IEnumerable<ProfessionalResource>))]
-    public async Task<ActionResult<IEnumerable<ProfessionalResource>>> GetAllProfessionals()
+    public async Task<ActionResult<IEnumerable<ProfessionalResource>>> GetAllProfessionals(
+        [FromQuery] int? page, [FromQuery] int? pageSize)
     {
         var professionals = await professionalQueryService.Handle(new GetAllProfessionalsQuery());
-        return Ok(professionals.Select(ProfessionalResourceFromEntityAssembler.ToResourceFromEntity));
+        var items = professionals.Select(ProfessionalResourceFromEntityAssembler.ToResourceFromEntity).ToList();
+
+        if (page is null && pageSize is null)
+            return Ok(items);
+
+        var pageNumber = Math.Max(1, page ?? 1);
+        var actualPageSize = Math.Max(1, pageSize ?? 20);
+        var total = items.Count;
+        var pageItems = items.Skip((pageNumber - 1) * actualPageSize).Take(actualPageSize).ToList();
+
+        Response.Headers["X-Total-Count"] = total.ToString();
+        return Ok(pageItems);
     }
 
     [HttpGet("{id:long}")]

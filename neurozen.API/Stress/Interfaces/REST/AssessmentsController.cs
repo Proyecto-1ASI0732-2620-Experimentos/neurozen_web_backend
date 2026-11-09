@@ -22,13 +22,17 @@ public class AssessmentsController(
     IAssessmentQueryService queryService) : ControllerBase
 {
     [HttpGet]
-    [SwaggerOperation(Summary = "My assessments (?userId= must be my id), most recent first")]
+    [SwaggerOperation(Summary = "My assessments (?userId= must be my id), most recent first",
+        Description = "Optional page/pageSize pagination; pageSize is capped at 100. Without both parameters, returns the full list.")]
     [SwaggerResponse(StatusCodes.Status200OK, "Assessments", typeof(IEnumerable<AssessmentResource>))]
     [SwaggerResponse(StatusCodes.Status403Forbidden, "Not my id", typeof(ErrorResponse))]
-    public async Task<ActionResult<IEnumerable<AssessmentResource>>> GetAssessments([FromQuery] long? userId)
+    public async Task<ActionResult<IEnumerable<AssessmentResource>>> GetAssessments(
+        [FromQuery] long? userId, [FromQuery] int? page, [FromQuery] int? pageSize)
     {
-        var assessments = await queryService.Handle(new GetAssessmentsQuery(userId));
-        return Ok(assessments.Select(StressResourceAssembler.ToResource));
+        var assessments = await queryService.Handle(new GetAssessmentsQuery(userId, page, pageSize));
+        if (assessments.TotalCount is { } totalCount)
+            Response.Headers["X-Total-Count"] = totalCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return Ok(assessments.Items.Select(StressResourceAssembler.ToResource));
     }
 
     [HttpPost]

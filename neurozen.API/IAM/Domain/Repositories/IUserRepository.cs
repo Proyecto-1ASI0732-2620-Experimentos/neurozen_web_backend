@@ -16,4 +16,7 @@ public interface IUserRepository : IBaseRepository<User>
 
     /// <summary>True only for active (not deleted) accounts. Used to reject tokens of deleted accounts.</summary>
     Task<bool> ExistsByIdAsync(long id);
+
+    /// <summary>Used during JWT validation to verify the current security stamp without loading the full user.</summary>
+    Task<(string SecurityStamp, bool IsDeleted)?> GetSecurityStampAndDeletedStatusAsync(long id);
 }

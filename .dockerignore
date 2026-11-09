@@ -6,3 +6,8 @@
 *.user
 *.suo
 error.md
+TestResults/
+coverage-report/
+.env
+.vs/
+.idea/

@@ -60,8 +60,9 @@ public class ProfessionalConfiguration : IEntityTypeConfiguration<Professional>
         builder.Property(p => p.Rating).HasPrecision(2, 1).IsRequired();
         builder.Property(p => p.ReviewsCount).IsRequired();
         builder.Property(p => p.Image).HasMaxLength(Professional.ImageMaxLength);
+        builder.Property(p => p.RowVersion).IsRowVersion();
         builder.Property(p => p.CreatedAt).IsRequired();
-        builder.Property(p => p.UpdatedAt).IsRequired();
+        builder.Property(p => p.UpdatedAt).IsRequired().IsConcurrencyToken();
         builder.Property(p => p.DeletedAt);
 
         builder.Ignore(p => p.IsVerified);

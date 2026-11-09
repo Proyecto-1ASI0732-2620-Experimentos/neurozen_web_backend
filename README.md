@@ -188,6 +188,20 @@ dotnet test
 Las pruebas de integración y BDD requieren Docker en ejecución o la variable
 `NEUROZEN_TEST_MYSQL` apuntando a una base de datos MySQL disponible.
 
+## Seguridad y despliegue
+
+### Destino de despliegue
+
+Se ha consolidado el despliegue en Render. Se mantiene la configuración de Docker del backend y la pipeline de Render para producción y staging; el resto de destinos obsoletos (AWS EC2 y Railway) se retiraron para evitar configuraciones contradictorias.
+
+### JWT y `SecurityStamp`
+
+Cada usuario tiene un `SecurityStamp` aleatorio con formato GUID sin guiones. El token emitido incluye el claim `sst` con ese valor. Al cambiar la contraseña, resetearla, cambiar el email o anonimizar la cuenta, el stamp se regenera para invalidar automáticamente JWTs anteriores. La validación JWT comprueba además que el usuario existe y no esté eliminado.
+
+### Proxies inversos y forwarded headers
+
+Cuando la API se despliega detrás de un proxy inverso (Render, Nginx, AWS ALB, etc.), activa `ForwardedHeaders__Enabled=true` y configura `ForwardedHeaders__KnownProxies` / `ForwardedHeaders__KnownNetworks` según la topología real. Si `ForwardedHeaders__TrustAllProxies=true`, la app entra en modo conservador y registra un warning porque confía en todos los proxies. El rate limiting usa `X-Forwarded-For` cuando el encabezado está presente para particionar por IP real del cliente.
+
 ## Documentación adicional
 
 - [Guía de entrega y ejecución](docs/ENTREGA_FINAL.md)

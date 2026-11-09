@@ -2,6 +2,7 @@ using neurozen.API.Stress.Domain.Model.Aggregates;
 using neurozen.API.Stress.Domain.Model.Commands;
 using neurozen.API.Stress.Domain.Model.Queries;
 using neurozen.API.Stress.Domain.Model.ReadModels;
+using neurozen.API.Shared.Domain.Model.Pagination;
 
 namespace neurozen.API.Stress.Domain.Services;
 
@@ -15,7 +16,7 @@ public interface IStressTriggerCommandService
 
 public interface IStressTriggerQueryService
 {
-    Task<IReadOnlyList<StressTrigger>> Handle(GetTriggersQuery query);
+    Task<PageResult<StressTrigger>> Handle(GetTriggersQuery query);
 }
 
 public interface IAssessmentCommandService
@@ -25,7 +26,7 @@ public interface IAssessmentCommandService
 
 public interface IAssessmentQueryService
 {
-    Task<IReadOnlyList<Assessment>> Handle(GetAssessmentsQuery query);
+    Task<PageResult<Assessment>> Handle(GetAssessmentsQuery query);
 }
 
 public interface IReportCommandService
@@ -35,5 +36,5 @@ public interface IReportCommandService
 
 public interface IReportQueryService
 {
-    Task<IReadOnlyList<ReportDetails>> Handle(GetReportsQuery query);
+    Task<PageResult<ReportDetails>> Handle(GetReportsQuery query);
 }

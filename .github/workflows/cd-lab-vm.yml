@@ -5,18 +5,22 @@ on:
     workflows: ["CI - Backend"]
     branches: [main]
     types: [completed]
+  workflow_dispatch:
 
 permissions:
   contents: read
+  checks: read
 
 jobs:
-  # 2) PUBLISH: solo pushes a main del propio repo (nunca forks) con CI + Quality Gate en verde
+  # 2) PUBLISH: solo commits de main con CI + Quality Gate en verde (automatico o manual)
   publish:
     if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.head_repository.full_name == github.repository
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.digest.outputs.image }}
@@ -25,10 +29,21 @@ jobs:
 
       - name: Verify tested commit
         env:
-          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           if [[ "$(git rev-parse HEAD)" != "$TESTED_SHA" ]]; then
             echo "::error::main avanzo desde el commit probado; se publicara en la siguiente ejecucion."
+            exit 1
+          fi
+
+      - name: Verify CI passed (manual runs)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ok=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs?check_name=build-and-test" --jq '[.check_runs[] | select(.conclusion=="success")] | length')
+          if [[ "$ok" -lt 1 ]]; then
+            echo "::error::Este commit no tiene build-and-test en verde; no se publica."
             exit 1
           fi
 
@@ -45,7 +60,7 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/neurozen-backend:sha-${{ github.event.workflow_run.head_sha }}
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/neurozen-backend:sha-${{ github.event.workflow_run.head_sha || github.sha }}
 
       - id: digest
         env:

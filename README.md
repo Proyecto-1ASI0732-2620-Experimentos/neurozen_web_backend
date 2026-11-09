@@ -202,6 +202,22 @@ Cada usuario tiene un `SecurityStamp` aleatorio con formato GUID sin guiones. El
 
 Cuando la API se despliega detrás de un proxy inverso (Render, Nginx, AWS ALB, etc.), activa `ForwardedHeaders__Enabled=true` y configura `ForwardedHeaders__KnownProxies` / `ForwardedHeaders__KnownNetworks` según la topología real. Si `ForwardedHeaders__TrustAllProxies=true`, la app entra en modo conservador y registra un warning porque confía en todos los proxies. El rate limiting usa `X-Forwarded-For` cuando el encabezado está presente para particionar por IP real del cliente.
 
+## CI/CD (pipeline.yml)
+
+El workflow [`.github/workflows/pipeline.yml`](.github/workflows/pipeline.yml) ("NeuroZen CI CD") corre en push y pull request a `develop`/`main`, y también a mano (`workflow_dispatch`). Tiene 3 jobs encadenados:
+
+1. **quality**: build en .NET 9, pruebas (unitarias, integración con MySQL 8 y BDD) con cobertura, y análisis de SonarCloud con Quality Gate bloqueante.
+2. **publish**: solo en push a `main`. Construye la imagen Docker (`linux/amd64`), la sube a Docker Hub con los tags `sha-<commit>` y `latest`, y expone la referencia inmutable `<usuario>/neurozen-backend@<digest>`.
+3. **deploy**: usa el environment `lab-production` (sin aprobadores) y corre en el propio runner `ubuntu-latest` de GitHub, sin VM ni SSH. Levanta MySQL 8 en la red `neurozen-network`, crea `api.env` dentro del job y ejecuta `scripts/deploy.sh` con la imagen por digest: arranca un candidato en el puerto 18080, hace un smoke test a `/health` y, si responde, lo promueve al 8080. Si el smoke test falla, no se promueve (rollback).
+
+El despliegue es efímero: los contenedores desaparecen al terminar el job. La evidencia (imagen activa y respuesta de `/health`) queda en el log y en el resumen de la ejecución.
+
+Configuración en GitHub (Settings → Secrets and variables → Actions):
+
+- Secretos: `SONAR_TOKEN`, `DOCKERHUB_TOKEN`.
+- Variable: `DOCKERHUB_USERNAME`.
+- Environment: `lab-production`, sin required reviewers.
+
 ## Documentación adicional
 
 - [Guía de entrega y ejecución](docs/ENTREGA_FINAL.md)

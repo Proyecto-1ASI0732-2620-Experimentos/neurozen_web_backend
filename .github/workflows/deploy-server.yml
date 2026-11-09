@@ -43,7 +43,7 @@ jobs:
           ${{ secrets.DOCKER_USERNAME }}/neurozen-api:latest
 
     - name: Deploy to AWS EC2
-      uses: appleboy/ssh-action@v1.0.3
+      uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262
       env:
         IMAGE_TAG: sha-${{ github.sha }}
         DOCKER_USER: ${{ secrets.DOCKER_USERNAME }}

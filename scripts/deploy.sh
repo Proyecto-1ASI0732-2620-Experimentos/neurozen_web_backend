@@ -11,7 +11,7 @@ NETWORK="neurozen-network"
 ENV_FILE="$HOME/neurozen/api.env"
 APP_PORT=10000
 
-if [ ! -f "$ENV_FILE" ]; then
+if [[ ! -f "$ENV_FILE" ]]; then
   echo "=> ERROR: no existe $ENV_FILE con la configuracion de la API."
   exit 1
 fi
@@ -36,7 +36,7 @@ for i in $(seq 1 30); do
   sleep 3
 done
 
-if [ "$OK" != "1" ]; then
+if [[ "$OK" != "1" ]]; then
   echo "=> Smoke test FALLO. ROLLBACK: se mantiene la version actual."
   docker inspect -f 'Status: {{.State.Status}} | ExitCode: {{.State.ExitCode}} | Error: {{.State.Error}}' "$CANDIDATE" || true
   echo "=> --- LOGS DEL CANDIDATO ---"

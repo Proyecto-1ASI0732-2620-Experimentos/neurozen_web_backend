@@ -10,29 +10,37 @@ permissions:
   contents: read
 
 jobs:
-  # 2) PUBLISH: only if "CI - Backend" (tests + Quality Gate) passed on a push to main
+  # 2) PUBLISH: solo pushes a main del propio repo (nunca forks) con CI + Quality Gate en verde
   publish:
     if: >
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_branch == 'main'
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.digest.outputs.image }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: docker/login-action@v3
+      - name: Verify tested commit
+        env:
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [[ "$(git rev-parse HEAD)" != "$TESTED_SHA" ]]; then
+            echo "::error::main avanzo desde el commit probado; se publicara en la siguiente ejecucion."
+            exit 1
+          fi
+
+      - uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5
         with:
           context: .
           push: true
@@ -45,15 +53,13 @@ jobs:
           DIGEST: ${{ steps.build.outputs.digest }}
         run: echo "image=${DOCKER_USER}/neurozen-backend@${DIGEST}" >> "$GITHUB_OUTPUT"
 
-  # 3) DEPLOY: candidate on 18080, promoted to 8080 only if /health is OK
+  # 3) DEPLOY: candidato en 18080, se promueve a 8080 solo si /health responde
   deploy:
     needs: publish
     runs-on: ubuntu-latest
     environment: lab-production
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Configure SSH
         env:

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace neurozen.API.Wellness.Interfaces.REST.Resources;
 
 public record HealthMetricResource(
@@ -10,7 +12,7 @@ public record HealthMetricResource(
     DateTime CreatedAt);
 
 public record CreateHealthMetricResource(
-    int StressLevel,
+    [property: JsonRequired] int StressLevel,
     int? HeartRate,
     decimal? SleepHours,
     string? Notes);

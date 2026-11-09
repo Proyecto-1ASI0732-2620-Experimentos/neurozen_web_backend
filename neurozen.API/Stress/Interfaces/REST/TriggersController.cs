@@ -23,13 +23,17 @@ public class TriggersController(
     IStressTriggerQueryService queryService) : ControllerBase
 {
     [HttpGet]
-    [SwaggerOperation(Summary = "My stress records (?userId= must be my id), most recent first")]
+    [SwaggerOperation(Summary = "My stress records (?userId= must be my id), most recent first",
+        Description = "Optional page/pageSize pagination; pageSize is capped at 100. Without both parameters, returns the full list.")]
     [SwaggerResponse(StatusCodes.Status200OK, "Records", typeof(IEnumerable<TriggerResource>))]
     [SwaggerResponse(StatusCodes.Status403Forbidden, "Not my id", typeof(ErrorResponse))]
-    public async Task<ActionResult<IEnumerable<TriggerResource>>> GetTriggers([FromQuery] long? userId)
+    public async Task<ActionResult<IEnumerable<TriggerResource>>> GetTriggers(
+        [FromQuery] long? userId, [FromQuery] int? page, [FromQuery] int? pageSize)
     {
-        var triggers = await queryService.Handle(new GetTriggersQuery(userId));
-        return Ok(triggers.Select(StressResourceAssembler.ToResource));
+        var triggers = await queryService.Handle(new GetTriggersQuery(userId, page, pageSize));
+        if (triggers.TotalCount is { } totalCount)
+            Response.Headers["X-Total-Count"] = totalCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return Ok(triggers.Items.Select(StressResourceAssembler.ToResource));
     }
 
     [HttpPost]

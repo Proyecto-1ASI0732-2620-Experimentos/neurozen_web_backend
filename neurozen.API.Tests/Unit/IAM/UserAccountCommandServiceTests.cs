@@ -45,4 +45,27 @@ public class UserAccountCommandServiceTests
         hashing.Verify(h => h.HashPassword(It.IsAny<string>()), Times.Never);
         unitOfWork.Verify(u => u.CompleteAsync(), Times.Never);
     }
+
+    [Fact]
+    public async Task UpdateProfile_EmailChangeWithoutCurrentPassword_ShouldThrowValidation()
+    {
+        var user = new User("ana@neurozen.com", "hash-actual", "Ana Torres", UserRole.User, DateTime.UtcNow)
+            .WithId(7);
+        var users = new Mock<IUserRepository>();
+        users.Setup(u => u.FindByIdAsync(7)).ReturnsAsync(user);
+        users.Setup(u => u.ExistsByEmailForOtherUserAsync("nuevo@neurozen.com", 7)).ReturnsAsync(false);
+        var hashing = new Mock<IHashingService>();
+        hashing.Setup(h => h.VerifyPassword(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
+        var unitOfWork = TestEntities.PassThroughUnitOfWork();
+        var service = new UserAccountCommandService(users.Object, hashing.Object, Array.Empty<IUserDataEraser>(),
+            unitOfWork.Object);
+
+        var exception = await Record.ExceptionAsync(
+            () => service.Handle(new UpdateUserProfileCommand(7, "nuevo@neurozen.com", "Ana Torres", null, null,
+                null, null, null, null, null, null)));
+
+        var validation = Assert.IsType<ValidationFailedException>(exception);
+        Assert.True(validation.Errors!.ContainsKey("currentPassword"));
+        unitOfWork.Verify(u => u.CompleteAsync(), Times.Never);
+    }
 }

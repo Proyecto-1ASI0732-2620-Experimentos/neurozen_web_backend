@@ -47,9 +47,21 @@ public static class JwtAuthenticationExtensions
                     OnTokenValidated = async context =>
                     {
                         var subject = context.Principal?.FindFirst(HttpCurrentUser.SubjectClaim)?.Value;
+                        var stamp = context.Principal?.FindFirst("sst")?.Value;
                         var users = context.HttpContext.RequestServices.GetRequiredService<IUserRepository>();
-                        if (!long.TryParse(subject, out var userId) || !await users.ExistsByIdAsync(userId))
-                            context.Fail("The account no longer exists");
+
+                        if (!long.TryParse(subject, out var userId))
+                        {
+                            context.Fail("The token subject is invalid");
+                            return;
+                        }
+
+                        var authState = await users.GetSecurityStampAndDeletedStatusAsync(userId);
+                        if (authState is null || authState.Value.IsDeleted || string.IsNullOrWhiteSpace(stamp) ||
+                            !string.Equals(authState.Value.SecurityStamp, stamp, StringComparison.Ordinal))
+                        {
+                            context.Fail("The account no longer exists or the session was invalidated");
+                        }
                     },
                     OnChallenge = async context =>
                     {

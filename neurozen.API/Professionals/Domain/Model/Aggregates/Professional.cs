@@ -58,6 +58,7 @@ public partial class Professional
     public int ReviewsCount { get; private set; }
 
     public string? Image { get; private set; }
+    public byte[] RowVersion { get; private set; } = Array.Empty<byte>();
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
     public DateTime? DeletedAt { get; private set; }

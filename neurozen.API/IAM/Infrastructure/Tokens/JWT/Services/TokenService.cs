@@ -29,6 +29,7 @@ public class TokenService(IOptions<TokenSettings> tokenSettings) : ITokenService
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
                 new Claim("role", user.Role.ToWire()),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                new Claim("sst", user.SecurityStamp),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
             }),
             Issuer = _settings.Issuer,

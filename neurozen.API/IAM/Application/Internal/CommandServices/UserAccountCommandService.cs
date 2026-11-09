@@ -59,11 +59,23 @@ public class UserAccountCommandService(
 
         errors.ThrowIfAny();
 
-        if (email != user.Email && await userRepository.ExistsByEmailForOtherUserAsync(email, user.Id))
-            throw new ConflictException("Ya existe una cuenta con este correo");
+        var emailChanged = email != user.Email;
+        if (emailChanged)
+        {
+            if (string.IsNullOrWhiteSpace(command.CurrentPassword))
+                throw new ValidationFailedException("La contraseña actual es obligatoria para cambiar el correo",
+                    new Dictionary<string, string[]> { ["currentPassword"] = ["La contraseña actual es obligatoria para cambiar el correo"] });
+
+            if (!hashingService.VerifyPassword(command.CurrentPassword, user.PasswordHash))
+                throw new ValidationFailedException("La contraseña actual es incorrecta",
+                    new Dictionary<string, string[]> { ["currentPassword"] = ["La contraseña actual es incorrecta"] });
+
+            if (await userRepository.ExistsByEmailForOtherUserAsync(email, user.Id))
+                throw new ConflictException("Ya existe una cuenta con este correo");
+        }
 
         user.UpdateProfile(email, fullName, phoneNumber, address, avatarUrl, dateOfBirth, ageRange, occupation,
-            workType);
+            workType, emailChanged);
         await unitOfWork.CompleteAsync();
         return user;
     }
@@ -88,10 +100,9 @@ public class UserAccountCommandService(
 
     public async Task Handle(DeleteAccountCommand command)
     {
-        var user = await FindActiveUserAsync(command.UserId);
-
         await unitOfWork.ExecuteInTransactionAsync(async () =>
         {
+            var user = await FindActiveUserAsync(command.UserId);
             foreach (var eraser in userDataErasers.OrderBy(eraser => eraser.Order))
                 await eraser.EraseAsync(user.Id);
 

@@ -24,15 +24,19 @@ public class ReportsController(
     IReportQueryService queryService) : ControllerBase
 {
     [HttpGet]
-    [SwaggerOperation(Summary = "?patientId= (USER, own) or ?professionalId= (verified psychologist, own), most recent first")]
+    [SwaggerOperation(Summary = "?patientId= (USER, own) or ?professionalId= (verified psychologist, own), most recent first",
+        Description = "Optional page/pageSize pagination; pageSize is capped at 100. Without both parameters, returns the full list.")]
     [SwaggerResponse(StatusCodes.Status200OK, "Reports", typeof(IEnumerable<ReportResource>))]
     [SwaggerResponse(StatusCodes.Status400BadRequest, "Neither or both filters", typeof(ErrorResponse))]
     [SwaggerResponse(StatusCodes.Status403Forbidden, "Not my reports", typeof(ErrorResponse))]
     public async Task<ActionResult<IEnumerable<ReportResource>>> GetReports(
-        [FromQuery] long? patientId, [FromQuery] long? professionalId)
+        [FromQuery] long? patientId, [FromQuery] long? professionalId,
+        [FromQuery] int? page, [FromQuery] int? pageSize)
     {
-        var reports = await queryService.Handle(new GetReportsQuery(patientId, professionalId));
-        return Ok(reports.Select(StressResourceAssembler.ToResource));
+        var reports = await queryService.Handle(new GetReportsQuery(patientId, professionalId, page, pageSize));
+        if (reports.TotalCount is { } totalCount)
+            Response.Headers["X-Total-Count"] = totalCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return Ok(reports.Items.Select(StressResourceAssembler.ToResource));
     }
 
     [HttpPost]

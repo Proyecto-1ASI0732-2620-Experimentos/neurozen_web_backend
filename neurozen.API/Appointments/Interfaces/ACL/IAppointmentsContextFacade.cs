@@ -9,6 +9,16 @@ public record AppointmentReference(long Id, long PatientId, long ProfessionalId,
     public bool IsCompleted => Status == "COMPLETED";
 }
 
+public record NextAppointmentReference(
+    long Id,
+    long PatientId,
+    long ProfessionalId,
+    DateTime AppointmentDateTime,
+    int AppointmentType,
+    string Status,
+    string? NotasAdicionales,
+    bool Reviewed);
+
 public interface IAppointmentsContextFacade
 {
     /// <summary>
@@ -19,6 +29,8 @@ public interface IAppointmentsContextFacade
         DateTime toUtcExclusive);
 
     Task<AppointmentReference?> FindAppointmentAsync(long appointmentId);
+
+    Task<NextAppointmentReference?> FindNextAppointmentAsync(long userId, DateTime fromUtc);
 
     /// <summary>Sets appointment.reviewed = true. Does not save: the caller commits in its unit of work.</summary>
     Task MarkReviewedAsync(long appointmentId);

@@ -1,7 +1,11 @@
+using System.Net;
+using AspNetIPNetwork = Microsoft.AspNetCore.HttpOverrides.IPNetwork;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
 using neurozen.API.Appointments.Application.Internal;
 using neurozen.API.Appointments.Application.Internal.AccountDeletion;
@@ -67,6 +71,11 @@ using neurozen.API.Subscriptions.Domain.Services;
 using neurozen.API.Subscriptions.Infrastructure.AccountDeletion;
 using neurozen.API.Subscriptions.Infrastructure.Repositories;
 using neurozen.API.Wellness.Infrastructure.AccountDeletion;
+using neurozen.API.Wellness.Application.Internal.CommandServices;
+using neurozen.API.Wellness.Application.Internal.QueryServices;
+using neurozen.API.Wellness.Domain.Repositories;
+using neurozen.API.Wellness.Domain.Services;
+using neurozen.API.Wellness.Infrastructure.Repositories;
 using neurozen.API.Wellness.Infrastructure.Seeding;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -93,16 +102,44 @@ var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[
     ? origins
     : new[] { "http://localhost:5173", "http://localhost:4173", "https://neurozen-web-frontend.vercel.app" };
 builder.Services.AddCors(options => options.AddPolicy(frontendCorsPolicy, policy =>
-    policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod()));
+    policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod().WithExposedHeaders("X-Total-Count")));
 
 // ---------------------------------------------------------------- Reverse proxy (production behind TLS)
-if (configuration.GetValue("ForwardedHeaders:Enabled", false))
+var trustAllProxies = configuration.GetValue("ForwardedHeaders:TrustAllProxies", false);
+var forwardedHeadersEnabled = configuration.GetValue("ForwardedHeaders:Enabled", false);
+if (forwardedHeadersEnabled)
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
         options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
         options.ForwardLimit = 1;
-        options.KnownNetworks.Clear();
         options.KnownProxies.Clear();
+        options.KnownNetworks.Clear();
+
+        if (trustAllProxies)
+        {
+            builder.Logging.AddFilter("Startup", LogLevel.Warning);
+            builder.Logging.AddConsole();
+            Console.WriteLine("WARNING: ForwardedHeaders:TrustAllProxies=true; trusting all proxy addresses is enabled.");
+            return;
+        }
+
+        foreach (var proxy in configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [])
+        {
+            if (IPAddress.TryParse(proxy, out var ip))
+                options.KnownProxies.Add(ip);
+        }
+
+        foreach (var network in configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [])
+        {
+            try
+            {
+                options.KnownNetworks.Add(AspNetIPNetwork.Parse(network));
+            }
+            catch (Exception)
+            {
+                // Ignore invalid CIDR entries and let the application fail closed by default.
+            }
+        }
     });
 
 // ---------------------------------------------------------------- Swagger
@@ -158,6 +195,7 @@ builder.Services.AddApiRateLimiting(configuration);
 builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
 builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, ApiAuthorizationResultHandler>();
 builder.Services.AddProfessionalAuthorization();
+builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 
 // ---------------------------------------------------------------- IAM
 builder.Services.Configure<PasswordResetSettings>(configuration.GetSection("PasswordReset"));
@@ -210,6 +248,14 @@ builder.Services.AddScoped<IResourceLibraryRepository, ResourceLibraryRepository
 builder.Services.AddScoped<IResourceLibraryCommandService, ResourceLibraryCommandService>();
 builder.Services.AddScoped<IResourceLibraryQueryService, ResourceLibraryQueryService>();
 
+// ---------------------------------------------------------------- Wellness
+builder.Services.AddScoped<IHealthMetricRepository, HealthMetricRepository>();
+builder.Services.AddScoped<IMeditationRepository, MeditationRepository>();
+builder.Services.AddScoped<IHealthMetricCommandService, HealthMetricCommandService>();
+builder.Services.AddScoped<IHealthMetricQueryService, HealthMetricQueryService>();
+builder.Services.AddScoped<IDashboardQueryService, DashboardQueryService>();
+builder.Services.AddScoped<IMeditationQueryService, MeditationQueryService>();
+
 // ---------------------------------------------------------------- Subscriptions
 builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 builder.Services.AddScoped<ISubscriptionCommandService, SubscriptionCommandService>();
@@ -248,7 +294,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 }
 
 // ---------------------------------------------------------------- HTTP pipeline
-if (configuration.GetValue("ForwardedHeaders:Enabled", false))
+if (forwardedHeadersEnabled)
     app.UseForwardedHeaders();
 
 app.UseExceptionHandler();
@@ -270,7 +316,20 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResultStatusCodes =
+    {
+        [HealthStatus.Healthy] = StatusCodes.Status200OK,
+        [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable,
+        [HealthStatus.Degraded] = StatusCodes.Status200OK
+    },
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(new { status = report.Status == HealthStatus.Healthy ? "healthy" : "unhealthy" });
+    }
+}).AllowAnonymous();
 app.MapControllers();
 
 app.Run();

@@ -51,6 +51,16 @@ public static class RateLimitPolicies
         return services;
     }
 
-    private static string ClientIp(HttpContext httpContext) =>
-        httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    private static string ClientIp(HttpContext httpContext)
+    {
+        var forwardedFor = httpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(forwardedFor))
+        {
+            var first = forwardedFor.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)[0];
+            if (!string.IsNullOrWhiteSpace(first))
+                return first;
+        }
+
+        return httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    }
 }

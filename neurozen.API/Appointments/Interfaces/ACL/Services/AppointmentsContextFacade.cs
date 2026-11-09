@@ -28,6 +28,41 @@ public class AppointmentsContextFacade(AppDbContext context) : IAppointmentsCont
                 appointment.Status.ToWire(), appointment.Reviewed);
     }
 
+    public async Task<NextAppointmentReference?> FindNextAppointmentAsync(long userId, DateTime fromUtc)
+    {
+        var appointment = await context.Set<Appointment>()
+            .AsNoTracking()
+            .Where(a => (a.PatientId == userId || a.ProfessionalId == userId) &&
+                        a.Status != AppointmentStatus.Cancelled &&
+                        a.AppointmentDateTime >= fromUtc)
+            .OrderBy(a => a.AppointmentDateTime)
+            .ThenBy(a => a.Id)
+            .Select(a => new
+            {
+                a.Id,
+                a.PatientId,
+                a.ProfessionalId,
+                a.AppointmentDateTime,
+                a.AppointmentType,
+                a.Status,
+                a.NotasAdicionales,
+                a.Reviewed
+            })
+            .FirstOrDefaultAsync();
+
+        return appointment is null
+            ? null
+            : new NextAppointmentReference(
+                appointment.Id,
+                appointment.PatientId,
+                appointment.ProfessionalId,
+                appointment.AppointmentDateTime,
+                (int)appointment.AppointmentType,
+                appointment.Status.ToString(),
+                appointment.NotasAdicionales,
+                appointment.Reviewed);
+    }
+
     public async Task MarkReviewedAsync(long appointmentId)
     {
         var appointment = await context.Set<Appointment>().FindAsync(appointmentId);

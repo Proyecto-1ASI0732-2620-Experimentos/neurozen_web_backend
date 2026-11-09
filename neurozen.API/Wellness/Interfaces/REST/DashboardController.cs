@@ -1,33 +1,27 @@
+using System.Net.Mime;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using neurozen.API.Shared.Application.Security;
-using neurozen.API.Shared.Infrastructure.Persistence.EFC.Configuration;
-using neurozen.API.Wellness.Domain.Entities;
+using neurozen.API.Wellness.Domain.Model.Queries;
+using neurozen.API.Wellness.Domain.Services;
+using neurozen.API.Wellness.Interfaces.REST.Resources;
+using neurozen.API.Wellness.Interfaces.REST.Transform;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace neurozen.API.Wellness.Interfaces.REST;
 
 /// <summary>Dashboard of the account owner. {userId} must be the "sub" of the token (403 otherwise).</summary>
 [ApiController]
 [Route("api/v1/users/{userId:long}/dashboard")]
-public class DashboardController(AppDbContext context, ICurrentUser currentUser) : ControllerBase
+[Produces(MediaTypeNames.Application.Json)]
+[Tags("Wellness")]
+public class DashboardController(IDashboardQueryService dashboardQueryService) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> GetDashboard(long userId)
+    [SwaggerOperation(Summary = "Latest health metric and next appointment for the account owner")]
+    [SwaggerResponse(StatusCodes.Status200OK, "Dashboard", typeof(DashboardResource))]
+    [SwaggerResponse(StatusCodes.Status403Forbidden, "Not your dashboard")]
+    public async Task<ActionResult<DashboardResource>> GetDashboard(long userId)
     {
-        WellnessOwnership.Ensure(currentUser, userId);
-
-        var latestMetric = await context.Set<HealthMetric>()
-            .AsNoTracking()
-            .Where(metric => metric.UserId == userId)
-            .OrderByDescending(metric => metric.CreatedAt)
-            .FirstOrDefaultAsync();
-
-        return Ok(new
-        {
-            stressLevel = latestMetric?.StressLevel,
-            heartRate = latestMetric?.HeartRate,
-            sleepHours = latestMetric?.SleepHours,
-            nextAppointment = (object?)null
-        });
+        var details = await dashboardQueryService.Handle(new GetDashboardQuery(userId));
+        return Ok(WellnessAssemblers.ToResource(details));
     }
 }

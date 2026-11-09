@@ -91,7 +91,10 @@ definir.
 | `Cors__AllowedOrigins__0`, `__1`, ... | No | Por defecto: `localhost:5173`, `localhost:4173` y el frontend en Vercel |
 | `PasswordReset__FrontendBaseUrl` | Sí en producción | `https://neurozen-web-frontend.vercel.app` |
 | `Email__Host`, `Email__Port`, `Email__Username`, `Email__Password`, `Email__From` | Para enviar correos | SMTP del proveedor |
-| `ForwardedHeaders__Enabled` | Detrás de un proxy TLS (Render/Railway) | `true` |
+| `ForwardedHeaders__Enabled` | Detrás de un proxy TLS (Render) | `true` |
+| `ForwardedHeaders__TrustAllProxies` | No | `false` (por defecto). Si se activa, se exige una justificación explícita porque la app confía en todos los proxies) |
+| `ForwardedHeaders__KnownProxies` | No | Lista de IPs de proxy confiables; vacía por defecto |
+| `ForwardedHeaders__KnownNetworks` | No | Lista de redes CIDR confiables; vacía por defecto |
 | `Database__ServerVersion` | No | `8.0.36-mysql` (evita detectar la versión al arrancar) |
 | `Swagger__Enabled` | No | `false` (por defecto fuera de Development) |
 

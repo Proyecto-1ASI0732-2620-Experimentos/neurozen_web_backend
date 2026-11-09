@@ -19,6 +19,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         // Empty for anonymized (deleted) accounts, which can never sign in.
         builder.Property(u => u.PasswordHash).HasMaxLength(100).IsRequired();
+        builder.Property(u => u.SecurityStamp).HasMaxLength(32).IsRequired();
         builder.Property(u => u.FullName).HasMaxLength(User.FullNameMaxLength).IsRequired();
 
         builder.Property(u => u.Role)

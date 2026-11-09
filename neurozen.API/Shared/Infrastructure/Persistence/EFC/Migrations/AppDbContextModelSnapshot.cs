@@ -210,6 +210,12 @@ namespace neurozen.API.Shared.Infrastructure.Persistence.EFC.Migrations
                         .HasColumnType("varchar(20)")
                         .HasColumnName("role");
 
+                    b.Property<string>("SecurityStamp")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("security_stamp");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)")
                         .HasColumnName("updated_at");
@@ -293,6 +299,12 @@ namespace neurozen.API.Shared.Infrastructure.Persistence.EFC.Migrations
                         .HasColumnType("int")
                         .HasColumnName("reviews_count");
 
+                    b.Property<DateTime>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("timestamp(6)")
+                        .HasColumnName("row_version");
+
                     b.Property<string>("Specialty")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -300,6 +312,7 @@ namespace neurozen.API.Shared.Infrastructure.Persistence.EFC.Migrations
                         .HasColumnName("specialty");
 
                     b.Property<DateTime>("UpdatedAt")
+                        .IsConcurrencyToken()
                         .HasColumnType("datetime(6)")
                         .HasColumnName("updated_at");
 

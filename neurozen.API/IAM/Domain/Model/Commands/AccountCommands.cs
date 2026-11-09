@@ -14,7 +14,8 @@ public record UpdateUserProfileCommand(
     string? DateOfBirth,
     string? AgeRange,
     string? Occupation,
-    string? WorkType);
+    string? WorkType,
+    string? CurrentPassword = null);
 
 public record ChangePasswordCommand(long UserId, string? CurrentPassword, string? NewPassword);
 

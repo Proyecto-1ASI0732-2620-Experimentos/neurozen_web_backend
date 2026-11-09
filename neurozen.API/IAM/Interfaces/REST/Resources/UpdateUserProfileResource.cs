@@ -16,7 +16,8 @@ public record UpdateUserProfileResource(
     string? DateOfBirth,
     string? AgeRange,
     string? Occupation,
-    string? WorkType);
+    string? WorkType,
+    string? CurrentPassword = null);
 
 /// <summary>PUT /users/{id}/password.</summary>
 public record ChangePasswordResource(string? CurrentPassword, string? NewPassword);

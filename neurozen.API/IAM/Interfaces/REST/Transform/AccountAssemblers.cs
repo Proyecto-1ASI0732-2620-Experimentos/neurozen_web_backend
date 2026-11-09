@@ -15,7 +15,8 @@ public static class UpdateUserProfileCommandFromResourceAssembler
             resource.DateOfBirth,
             resource.AgeRange,
             resource.Occupation,
-            resource.WorkType);
+            resource.WorkType,
+            resource.CurrentPassword);
 }
 
 public static class ChangePasswordCommandFromResourceAssembler

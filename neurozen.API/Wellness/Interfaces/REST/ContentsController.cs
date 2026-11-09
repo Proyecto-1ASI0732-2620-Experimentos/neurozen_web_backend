@@ -1,29 +1,25 @@
+using System.Net.Mime;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using neurozen.API.Shared.Infrastructure.Persistence.EFC.Configuration;
+using neurozen.API.Wellness.Domain.Model.Queries;
+using neurozen.API.Wellness.Domain.Services;
+using neurozen.API.Wellness.Interfaces.REST.Resources;
+using neurozen.API.Wellness.Interfaces.REST.Transform;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace neurozen.API.Wellness.Interfaces.REST;
 
 [ApiController]
 [Route("api/v1/contents")]
-public class ContentsController(AppDbContext context) : ControllerBase
+[Produces(MediaTypeNames.Application.Json)]
+[Tags("Wellness")]
+public class ContentsController(IMeditationQueryService meditationQueryService) : ControllerBase
 {
     [HttpGet("meditations")]
-    public async Task<IActionResult> GetMeditations()
+    [SwaggerOperation(Summary = "List available meditations")]
+    [SwaggerResponse(StatusCodes.Status200OK, "Meditations", typeof(IEnumerable<MeditationResource>))]
+    public async Task<ActionResult<IEnumerable<MeditationResource>>> GetMeditations()
     {
-        var meditations = await context.Set<Domain.Entities.Meditation>()
-            .AsNoTracking()
-            .Select(meditation => new
-            {
-                id = meditation.Id,
-                title = meditation.Title,
-                description = meditation.Description,
-                durationMinutes = meditation.DurationMinutes,
-                imageUrl = meditation.ImageUrl,
-                audioUrl = meditation.AudioUrl
-            })
-            .ToListAsync();
-
-        return Ok(meditations);
+        var meditations = await meditationQueryService.Handle(new GetMeditationsQuery());
+        return Ok(meditations.Select(WellnessAssemblers.ToResource));
     }
 }

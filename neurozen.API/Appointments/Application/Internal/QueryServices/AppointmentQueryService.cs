@@ -6,6 +6,7 @@ using neurozen.API.Professionals.Interfaces.ACL;
 using neurozen.API.Shared.Application.Security;
 using neurozen.API.Shared.Domain.Model.Exceptions;
 using neurozen.API.Shared.Domain.Model.Security;
+using neurozen.API.Shared.Domain.Model.Pagination;
 
 namespace neurozen.API.Appointments.Application.Internal.QueryServices;
 
@@ -15,17 +16,20 @@ public class AppointmentQueryService(
     AppointmentAccess access,
     ICurrentUser currentUser) : IAppointmentQueryService
 {
-    public async Task<IReadOnlyList<AppointmentDetails>> Handle(GetAppointmentsQuery query)
+    public async Task<PageResult<AppointmentDetails>> Handle(GetAppointmentsQuery query)
     {
         if (query.PatientId is null == query.ProfessionalId is null)
             throw new ValidationFailedException("Indica patientId o professionalId (solo uno)");
+        var pageRequest = PageRequest.From(query.Page, query.PageSize);
 
         if (query.PatientId is { } patientId)
         {
             if (!currentUser.IsInRole(AppRoles.User) || patientId != currentUser.Id)
                 throw new ForbiddenOperationException("Solo puedes ver tus propias citas");
 
-            return await access.ToDetailsAsync(await appointmentRepository.ListByPatientIdAsync(patientId), false);
+            var patientPage = await appointmentRepository.ListPageByPatientIdAsync(patientId, pageRequest);
+            return new PageResult<AppointmentDetails>(
+                await access.ToDetailsAsync(patientPage.Items, false), patientPage.TotalCount);
         }
 
         var professionalId = query.ProfessionalId!.Value;
@@ -38,7 +42,9 @@ public class AppointmentQueryService(
         if (!professional.IsBookable)
             throw new ForbiddenOperationException("Tu cuenta profesional aún no está verificada");
 
-        return await access.ToDetailsAsync(await appointmentRepository.ListByProfessionalIdAsync(professionalId), true);
+        var professionalPage = await appointmentRepository.ListPageByProfessionalIdAsync(professionalId, pageRequest);
+        return new PageResult<AppointmentDetails>(
+            await access.ToDetailsAsync(professionalPage.Items, true), professionalPage.TotalCount);
     }
 
     public async Task<AppointmentDetails> Handle(GetAppointmentByIdQuery query)

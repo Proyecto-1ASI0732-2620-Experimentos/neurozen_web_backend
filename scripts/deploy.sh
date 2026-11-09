@@ -19,8 +19,8 @@ docker run -d --name $CANDIDATE --network $NETWORK -p 18080:10000 \
   -e ConnectionStrings__DefaultConnection="$DB_CONN" \
   -e TokenSettings__Secret="$JWT_SECRET" $IMAGE
 
-echo "=> Esperando 10 segundos para que .NET arranque..."
-sleep 10
+echo "=> Esperando 20segundos para que .NET arranque..."
+sleep 20
 
 echo "=> Ejecutando Smoke Test interno..."
 if curl -s -f http://127.0.0.1:18080/health; then
@@ -35,6 +35,10 @@ if curl -s -f http://127.0.0.1:18080/health; then
   echo "=> ¡Despliegue Cero-Downtime exitoso!"
 else
   echo "=> Smoke test FALLÓ. Abortando despliegue para proteger producción."
+  echo "=> --- LOGS DEL CONTENEDOR CANDIDATO ---"
+  docker logs $CANDIDATE
+  echo "=> -------------------------------------"
   docker rm -f $CANDIDATE
   exit 1
+fi
 fi

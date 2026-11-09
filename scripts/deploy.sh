@@ -41,7 +41,7 @@ else
   docker logs $CANDIDATE 2>&1
   echo "=> ----------------------"
   echo "=> Prueba de red detallada (Curl):"
-  curl -v http://127.0.0.1:18080/health || true
+  curl -m 10 -v http://127.0.0.1:18080/health || true
   docker rm -f $CANDIDATE
   exit 1
 fi

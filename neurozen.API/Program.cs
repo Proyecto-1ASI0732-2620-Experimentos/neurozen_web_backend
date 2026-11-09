@@ -142,7 +142,13 @@ if (string.IsNullOrWhiteSpace(connectionString))
 var serverVersion = string.IsNullOrWhiteSpace(configuration["Database:ServerVersion"])
     ? ServerVersion.Parse("8.0")
     : ServerVersion.Parse(configuration["Database:ServerVersion"]);
-builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(connectionString, serverVersion));
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseMySql(connectionString, serverVersion, mySqlOptions =>
+        mySqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: null)
+    ));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // ---------------------------------------------------------------- Security

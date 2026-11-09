@@ -51,6 +51,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: lab-production
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
       - name: Configure SSH
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -60,9 +64,17 @@ jobs:
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
           printf '%s\n' "$DEPLOY_HOST_KEY" > ~/.ssh/known_hosts && chmod 600 ~/.ssh/known_hosts
 
+      - name: Copy deploy script to VM
+        env:
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          ssh -o StrictHostKeyChecking=yes "${DEPLOY_USER}@${DEPLOY_HOST}" "mkdir -p ~/neurozen"
+          scp -o StrictHostKeyChecking=yes scripts/deploy.sh "${DEPLOY_USER}@${DEPLOY_HOST}:~/neurozen/deploy.sh"
+
       - name: Deploy immutable image
         env:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           IMAGE: ${{ needs.publish.outputs.image }}
-        run: ssh -o StrictHostKeyChecking=yes "${DEPLOY_USER}@${DEPLOY_HOST}" "bash ~/neurozen-backend/scripts/deploy.sh '${IMAGE}'"
+        run: ssh -o StrictHostKeyChecking=yes "${DEPLOY_USER}@${DEPLOY_HOST}" "bash ~/neurozen/deploy.sh '${IMAGE}'"

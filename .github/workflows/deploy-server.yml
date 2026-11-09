@@ -8,9 +8,9 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
     - name: Setup .NET 9
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@3951f0dfe7a07e2313ec93c75700083e2005cbab # v4.0.1
       with:
         dotnet-version: 9.0.x
     - name: Run Unit Tests
@@ -42,6 +42,15 @@ jobs:
           ${{ secrets.DOCKER_USERNAME }}/neurozen-api:sha-${{ github.sha }}
           ${{ secrets.DOCKER_USERNAME }}/neurozen-api:latest
 
+    - name: Copy deployment script to AWS
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.DEPLOY_HOST }}
+        username: ${{ secrets.DEPLOY_USER }}
+        key: ${{ secrets.DEPLOY_SSH_KEY }}
+        source: "scripts/deploy.sh"
+        target: "~/neurozen_web_backend"
+
     - name: Deploy to AWS EC2
       uses: appleboy/ssh-action@v1.0.3
       env:
@@ -54,5 +63,5 @@ jobs:
         key: ${{ secrets.DEPLOY_SSH_KEY }}
         envs: IMAGE_TAG,DOCKER_USER,JWT_SECRET
         script: |
-          chmod +x ~/neurozen_backend/scripts/deploy.sh
-          ~/neurozen_backend/scripts/deploy.sh $DOCKER_USER/neurozen-api:$IMAGE_TAG "$JWT_SECRET"
+          chmod +x ~/neurozen_web_backend/scripts/deploy.sh
+          ~/neurozen_web_backend/scripts/deploy.sh $DOCKER_USER/neurozen-api:$IMAGE_TAG "$JWT_SECRET"

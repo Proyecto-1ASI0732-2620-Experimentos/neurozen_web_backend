@@ -13,6 +13,7 @@ permissions:
 jobs:
   # 1) QUALITY: build, pruebas con cobertura y Quality Gate de SonarCloud
   quality:
+    name: build-and-test
     runs-on: ubuntu-latest
     env:
       # Server-level connection: the tests create (and drop) their own database per run.

@@ -140,7 +140,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 // Database:ServerVersion (e.g. "8.0.36-mysql") avoids a connection at startup just to detect the version.
 var serverVersion = string.IsNullOrWhiteSpace(configuration["Database:ServerVersion"])
-    ? ServerVersion.AutoDetect(connectionString)
+    ? ServerVersion.Parse("8.0")
     : ServerVersion.Parse(configuration["Database:ServerVersion"]);
 builder.Services.AddDbContext<AppDbContext>(options => options.UseMySql(connectionString, serverVersion));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();

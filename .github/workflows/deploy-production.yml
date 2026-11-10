@@ -2,7 +2,7 @@ name: CD - Production Backend
 
 on:
   workflow_run:
-    workflows: ["CI - Backend"]
+    workflows: ["NeuroZen CI CD"]
     branches: [main]
     types: [completed]
 

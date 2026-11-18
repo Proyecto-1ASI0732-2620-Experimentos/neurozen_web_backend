@@ -27,4 +27,10 @@ public class ResourceLibraryQueryService(IResourceLibraryRepository repository, 
             throw ResourceAccess.PlanRequired(resource);
         return resource;
     }
+
+    public Task<IReadOnlyList<ResourceLibrary>> Handle(GetAllResourceLibrariesForAdminQuery query) =>
+        repository.ListOrderedAsync();
+
+    public async Task<ResourceLibrary> Handle(GetResourceLibraryForAdminQuery query) =>
+        await repository.FindByIdAsync(query.Id) ?? throw new ResourceNotFoundException("El recurso no existe");
 }

@@ -7,6 +7,7 @@ using neurozen.API.Professionals.Domain.Repositories;
 using neurozen.API.Professionals.Domain.Services;
 using neurozen.API.Shared.Domain.Model.Exceptions;
 using neurozen.API.Shared.Domain.Repositories;
+using neurozen.API.Shared.Domain.Model.Text;
 
 namespace neurozen.API.Professionals.Application.Internal.CommandServices;
 
@@ -27,7 +28,7 @@ public class ProfessionalProfileCommandService(
 
         var errors = new ValidationErrors();
 
-        var fullName = (command.FullName ?? string.Empty).Trim();
+        var fullName = TextNormalization.CollapseWhitespace(command.FullName);
         iamContextFacade.ValidateFullName(fullName, "fullName", errors);
 
         errors.AddIf(!SpecialtyExtensions.TryFromWire(command.Specialty, out var specialty), "specialty",
@@ -80,6 +81,6 @@ public class ProfessionalProfileCommandService(
         if (resubmitted)
             logger.LogInformation("Professional {ProfessionalId} returned to PENDING verification", professional.Id);
 
-        return new ProfessionalDetails(professional, fullName, owner.Email);
+        return new ProfessionalDetails(professional, fullName, owner.Email, owner.Dni);
     }
 }

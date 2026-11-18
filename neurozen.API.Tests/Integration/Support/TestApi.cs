@@ -29,6 +29,7 @@ public sealed class TestApi(NeuroZenApiFactory factory)
     public const string DefaultPassword = "Secreta123";
     private static int _ipCounter;
     private static int _licenseCounter = Random.Shared.Next(100000, 800000);
+    private static int _dniCounter = Random.Shared.Next(10000000, 90000000);
 
     public HttpClient Anonymous(string? clientIp = null)
     {
@@ -52,12 +53,17 @@ public sealed class TestApi(NeuroZenApiFactory factory)
 
     public static string UniqueEmail(string prefix) => $"{prefix}.{Guid.NewGuid():N}@neurozen.test";
 
+    /// <summary>Fictitious 8-digit DNI, unique within the test run (format only; no real person).</summary>
+    public static string UniqueDni() =>
+        Interlocked.Increment(ref _dniCounter).ToString("D8", CultureInfo.InvariantCulture);
+
     public async Task<TestAccount> AsUser(string fullName = "Ana Torres")
     {
         var email = UniqueEmail("trabajador");
         var response = await Anonymous().PostAsJsonAsync("/api/v1/authentication/sign-up", new
         {
-            email, password = DefaultPassword, fullName, role = "USER", acceptedTerms = true
+            email, password = DefaultPassword, confirmPassword = DefaultPassword, fullName, dni = UniqueDni(),
+            role = "USER", acceptedTerms = true, acceptedPrivacyPolicy = true
         });
         await EnsureStatusAsync(response, HttpStatusCode.Created);
         var body = await response.ReadJsonAsync();
@@ -72,7 +78,8 @@ public sealed class TestApi(NeuroZenApiFactory factory)
         var license = Interlocked.Increment(ref _licenseCounter).ToString(CultureInfo.InvariantCulture);
         var signUp = await Anonymous().PostAsJsonAsync("/api/v1/authentication/sign-up", new
         {
-            email, password = DefaultPassword, fullName, role = "PSYCHOLOGIST", acceptedTerms = true,
+            email, password = DefaultPassword, confirmPassword = DefaultPassword, fullName, dni = UniqueDni(),
+            role = "PSYCHOLOGIST", acceptedTerms = true, acceptedPrivacyPolicy = true,
             specialty = "clinical", licenseNumber = license
         });
         await EnsureStatusAsync(signUp, HttpStatusCode.Created);
@@ -111,6 +118,25 @@ public sealed class TestApi(NeuroZenApiFactory factory)
             end = "23:59"
         }
     };
+
+    /// <summary>Subscribes the account to a plan (1 = Básico, 2 = Avanzado, 3 = Profesional) with a fictitious card.</summary>
+    public static async Task SubscribeAsync(TestAccount account, int planId)
+    {
+        var response = await account.Client.PostAsJsonAsync("/api/v1/subscriptions", new
+        {
+            userId = account.UserId, planId, nameUser = "Ana", lastNameUser = "Torres", emailUser = account.Email,
+            numberCard = "4111111111111111", expirationDate = "12/30", cvv = "123"
+        });
+        if (response.StatusCode is not (HttpStatusCode.Created or HttpStatusCode.OK))
+            await EnsureStatusAsync(response, HttpStatusCode.Created);
+    }
+
+    public async Task<TestAccount> AsUserWithPlan(int planId)
+    {
+        var account = await AsUser();
+        await SubscribeAsync(account, planId);
+        return account;
+    }
 
     public async Task<TestAccount> AsAdmin()
     {

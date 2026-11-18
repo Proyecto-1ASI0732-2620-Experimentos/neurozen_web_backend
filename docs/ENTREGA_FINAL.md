@@ -163,8 +163,10 @@ No se mantienen rutas ni formatos antiguos.
 **Autenticación y cuenta**
 6. `sign-in`: `{ username: <correo>, password }` → `{ id, fullName, email, role, token }`. Credenciales incorrectas: 401
    (antes 500).
-7. `sign-up`: `{ email, password, fullName, role, acceptedTerms, specialty?, licenseNumber? }` → 201 con el mismo cuerpo
-   que sign-in (ya inicia sesión). `acceptedTerms: true` obligatorio; `ADMIN` prohibido.
+7. `sign-up`: `{ email, password, confirmPassword?, fullName, dni, role, acceptedTerms, acceptedPrivacyPolicy?,
+   specialty?, licenseNumber? }` → 201 con el mismo cuerpo que sign-in (ya inicia sesión). `dni` (8 dígitos)
+   obligatorio para todos los roles; `acceptedTerms: true` obligatorio; `ADMIN` prohibido. Ver
+   `docs/INFORME_AUDITORIA_REGISTRO_DNI.md` (noviembre 2026).
 8. Nuevos: `forgot-password` (siempre 200 `{ "message": "ok" }`), `reset-password`, `PUT /users/{id}`,
    `PUT /users/{id}/password` (204), `DELETE /users/{id}` (204).
 9. `GET /users` ya no existe. `GET /users/{id}` solo funciona con el propio id y devuelve el perfil completo

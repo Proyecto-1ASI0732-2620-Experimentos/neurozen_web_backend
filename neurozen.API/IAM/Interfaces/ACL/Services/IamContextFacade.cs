@@ -9,7 +9,7 @@ public class IamContextFacade(IUserRepository userRepository) : IIamContextFacad
     public async Task<UserSummary?> FetchUserSummaryAsync(long userId)
     {
         var user = await userRepository.FindByIdAsync(userId);
-        return user is null ? null : new UserSummary(user.Id, user.FullName, user.Email, user.IsDeleted);
+        return user is null ? null : new UserSummary(user.Id, user.FullName, user.Email, user.IsDeleted, user.Dni);
     }
 
     public async Task<IReadOnlyDictionary<long, UserSummary>> FetchUserSummariesAsync(IEnumerable<long> userIds)
@@ -20,7 +20,7 @@ public class IamContextFacade(IUserRepository userRepository) : IIamContextFacad
         var users = await userRepository.ListByIdsAsync(ids);
         return users.ToDictionary(
             user => user.Id,
-            user => new UserSummary(user.Id, user.FullName, user.Email, user.IsDeleted));
+            user => new UserSummary(user.Id, user.FullName, user.Email, user.IsDeleted, user.Dni));
     }
 
     public void ValidateFullName(string fullName, string field, ValidationErrors errors) =>

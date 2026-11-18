@@ -21,6 +21,7 @@ public class AppointmentAccess(
     IIamContextFacade iamContextFacade)
 {
     public const string NotFoundMessage = "La cita no existe";
+    public const string NotVerifiedMessage = "Tu cuenta profesional aún no está verificada";
 
     public async Task<AppointmentParticipant> ResolveAsync(Appointment appointment)
     {
@@ -30,6 +31,18 @@ public class AppointmentAccess(
         return professional?.UserId == currentUser.Id
             ? AppointmentParticipant.Psychologist
             : AppointmentParticipant.None;
+    }
+
+    /// <summary>
+    ///     A psychologist whose profile is not VERIFIED (e.g. back to PENDING after changing the license number or
+    ///     the name) cannot read patient data nor perform professional actions on the appointment (403).
+    ///     Same rule as GET /appointments?professionalId=.
+    /// </summary>
+    public async Task EnsureVerifiedProfessionalAsync(Appointment appointment)
+    {
+        var professional = await professionalsContextFacade.FindByIdAsync(appointment.ProfessionalId);
+        if (professional is not { IsBookable: true })
+            throw new Shared.Domain.Model.Exceptions.ForbiddenOperationException(NotVerifiedMessage);
     }
 
     /// <summary>Adds patientName (and patientEmail only when <paramref name="includePatientEmail" />).</summary>

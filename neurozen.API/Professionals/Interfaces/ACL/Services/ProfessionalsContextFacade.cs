@@ -6,7 +6,9 @@ using neurozen.API.Shared.Domain.Model.Time;
 
 namespace neurozen.API.Professionals.Interfaces.ACL.Services;
 
-public class ProfessionalsContextFacade(IProfessionalRepository professionalRepository) : IProfessionalsContextFacade
+public class ProfessionalsContextFacade(
+    IProfessionalRepository professionalRepository,
+    ILogger<ProfessionalsContextFacade> logger) : IProfessionalsContextFacade
 {
     public void ValidateRegistration(string? specialty, string? licenseNumber, ValidationErrors errors)
     {
@@ -23,6 +25,14 @@ public class ProfessionalsContextFacade(IProfessionalRepository professionalRepo
     {
         var professional = new Professional(userId, SpecialtyExtensions.FromWire(specialty), licenseNumber);
         await professionalRepository.AddAsync(professional);
+    }
+
+    public async Task ReturnToPendingVerificationAsync(long userId)
+    {
+        var professional = await professionalRepository.FindByUserIdAsync(userId);
+        if (professional is not null && professional.ReturnToPendingVerification(DateTime.UtcNow))
+            logger.LogInformation("Professional {ProfessionalId} returned to PENDING verification (name changed)",
+                professional.Id);
     }
 
     public async Task<ProfessionalReference?> FindByIdAsync(long professionalId) =>

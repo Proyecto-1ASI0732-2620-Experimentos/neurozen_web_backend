@@ -15,6 +15,7 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
     private static readonly (string IndexName, string Message)[] KnownUniqueIndexes =
     [
         ("ux_users_email", "Ya existe una cuenta con este correo"),
+        ("ux_users_dni", "Ya existe una cuenta con este DNI"),
         ("ux_professionals_license_number", "Ya existe una cuenta con esta colegiatura"),
         ("ux_appointments_professional_active_slot", "El horario ya no está disponible"),
         ("ux_reports_appointment_id", "Ya compartiste un informe para esta cita"),

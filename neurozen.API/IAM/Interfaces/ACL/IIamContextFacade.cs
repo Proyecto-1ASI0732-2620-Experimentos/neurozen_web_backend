@@ -2,8 +2,11 @@ using neurozen.API.Shared.Domain.Model.Exceptions;
 
 namespace neurozen.API.IAM.Interfaces.ACL;
 
-/// <summary>Minimal user data other bounded contexts may read (no password hash, no profile details).</summary>
-public record UserSummary(long Id, string FullName, string Email, bool IsDeleted)
+/// <summary>
+///     Minimal user data other bounded contexts may read (no password hash, no profile details).
+///     Dni is personal data: only the admin verification views may expose it; never log it.
+/// </summary>
+public record UserSummary(long Id, string FullName, string Email, bool IsDeleted, string? Dni = null)
 {
     /// <summary>"Ana T." — for places where the full name must not be shown (reviews).</summary>
     public string AbbreviatedName => neurozen.API.IAM.Domain.Model.ValueObjects.PersonName.Abbreviate(FullName);

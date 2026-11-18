@@ -46,6 +46,7 @@ public record AdminProfessionalResource(
     string LicenseNumber,
     string VerificationStatus,
     string RejectionReason,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    string Dni = "");
 
 public record RejectProfessionalResource(string? Reason);

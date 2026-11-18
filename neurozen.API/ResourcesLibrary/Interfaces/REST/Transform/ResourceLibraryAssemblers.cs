@@ -17,5 +17,10 @@ public static class ResourceLibraryAssembler
         r.CreatedAt);
 
     public static CreateResourceLibraryCommand ToCommand(CreateResourceLibraryResource r) =>
-        new(r.Title, r.Description, r.Content, r.Author, r.ResourceType, r.ContentUrl, r.Duration, r.Thumbnail, r.Tags);
+        new(r.Title, r.Description, r.Content, r.Author, r.ResourceType, r.ContentUrl, r.Duration, r.Thumbnail, r.Tags,
+            r.RequiredPlan);
+
+    public static UpdateResourceLibraryCommand ToCommand(long id, UpdateResourceLibraryResource r) =>
+        new(id, r.Title, r.Description, r.Content, r.Author, r.ContentUrl, r.Duration, r.Thumbnail, r.Tags,
+            r.RequiredPlan);
 }

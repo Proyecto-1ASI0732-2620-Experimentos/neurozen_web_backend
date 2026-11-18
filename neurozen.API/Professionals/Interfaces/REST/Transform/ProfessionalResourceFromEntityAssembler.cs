@@ -68,7 +68,8 @@ public static class AdminProfessionalResourceFromEntityAssembler
             p.LicenseNumber ?? string.Empty,
             p.VerificationStatus.ToWire(),
             p.RejectionReason ?? string.Empty,
-            p.CreatedAt);
+            p.CreatedAt,
+            details.Dni ?? string.Empty);
     }
 }
 

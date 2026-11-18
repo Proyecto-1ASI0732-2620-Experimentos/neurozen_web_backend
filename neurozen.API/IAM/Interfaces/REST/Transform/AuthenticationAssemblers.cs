@@ -27,7 +27,10 @@ public static class SignUpCommandFromResourceAssembler
             resource.Role,
             resource.AcceptedTerms == true,
             resource.Specialty,
-            resource.LicenseNumber);
+            resource.LicenseNumber,
+            resource.Dni,
+            resource.ConfirmPassword,
+            resource.AcceptedPrivacyPolicy);
     }
 }
 

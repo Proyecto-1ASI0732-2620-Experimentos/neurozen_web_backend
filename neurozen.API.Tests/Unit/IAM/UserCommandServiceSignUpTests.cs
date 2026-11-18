@@ -1,5 +1,8 @@
+using Microsoft.Extensions.Options;
 using Moq;
 using neurozen.API.IAM.Application.Internal.CommandServices;
+using neurozen.API.IAM.Application.Internal.Configuration;
+using neurozen.API.IAM.Domain.Model.Entities;
 using neurozen.API.IAM.Application.Internal.OutboundServices;
 using neurozen.API.IAM.Domain.Model.Aggregates;
 using neurozen.API.IAM.Domain.Model.Commands;
@@ -17,6 +20,8 @@ public class UserCommandServiceSignUpTests
     private readonly Mock<IProfessionalsContextFacade> _professionals = new();
     private readonly Mock<ITokenService> _tokens = new();
     private readonly Mock<IHashingService> _hashing = new();
+    private readonly Mock<IUserConsentRepository> _consents = new();
+    private readonly List<UserConsent> _savedConsents = [];
     private readonly CapturedValue<bool> _insideTransaction = new(false);
     private readonly Mock<neurozen.API.Shared.Domain.Repositories.IUnitOfWork> _unitOfWork;
 
@@ -27,16 +32,39 @@ public class UserCommandServiceSignUpTests
         _tokens.Setup(t => t.GenerateToken(It.IsAny<User>())).Returns("jwt-de-prueba");
         _users.Setup(u => u.ExistsByEmailAsync(It.IsAny<string>())).ReturnsAsync(false);
         _professionals.Setup(p => p.ExistsByLicenseNumberAsync(It.IsAny<string>())).ReturnsAsync(false);
+        _users.Setup(u => u.ExistsByDniAsync(It.IsAny<string>())).ReturnsAsync(false);
+        _consents.Setup(c => c.AddAsync(It.IsAny<UserConsent>())).Callback<UserConsent>(_savedConsents.Add)
+            .Returns(Task.CompletedTask);
+        // Real validation rules of the Professionals context (specialty catalogue and license format).
+        _professionals.Setup(p => p.ValidateRegistration(It.IsAny<string?>(), It.IsAny<string?>(),
+                It.IsAny<ValidationErrors>()))
+            .Callback<string?, string?, ValidationErrors>((specialty, license, errors) =>
+                new neurozen.API.Professionals.Interfaces.ACL.Services.ProfessionalsContextFacade(
+                        new Mock<neurozen.API.Professionals.Domain.Repositories.IProfessionalRepository>().Object,
+                        Microsoft.Extensions.Logging.Abstractions
+                            .NullLogger<neurozen.API.Professionals.Interfaces.ACL.Services.ProfessionalsContextFacade>
+                            .Instance)
+                    .ValidateRegistration(specialty, license, errors));
     }
 
     private UserCommandService CreateService() =>
-        new(_users.Object, _professionals.Object, _tokens.Object, _hashing.Object, _unitOfWork.Object);
+        new(_users.Object, _professionals.Object, _tokens.Object, _hashing.Object, _unitOfWork.Object,
+            _consents.Object, Options.Create(new LegalSettings { TermsVersion = "2026-11", PrivacyPolicyVersion = "2026-11" }));
 
     private static SignUpCommand Worker(string? role = "USER", bool acceptedTerms = true) =>
-        new("ana@neurozen.com", "Secreta123", "Ana Torres", role, acceptedTerms, null, null);
+        new("ana@neurozen.com", "Secreta123", "Ana Torres", role, acceptedTerms, null, null, "12345678");
 
     private static SignUpCommand Psychologist() =>
-        new("elena@psico.pe", "Segura2026", "Elena Ramírez", "PSYCHOLOGIST", true, "clinical", "45821");
+        new("elena@psico.pe", "Segura2026", "Elena Ramírez", "PSYCHOLOGIST", true, "clinical", "45821", "87654321");
+
+    private async Task<ValidationFailedException> AssertRejectedAsync(SignUpCommand command, string field)
+    {
+        var exception = await Assert.ThrowsAsync<ValidationFailedException>(() => CreateService().Handle(command));
+        Assert.True(exception.Errors!.ContainsKey(field),
+            $"Se esperaba un error en '{field}', se obtuvo: {string.Join(", ", exception.Errors.Keys)}");
+        _users.Verify(u => u.AddAsync(It.IsAny<User>()), Times.Never);
+        return exception;
+    }
 
     /// <summary>
     /// NOTA DE PRUEBA:
@@ -187,5 +215,188 @@ public class UserCommandServiceSignUpTests
         _users.Verify(u => u.AddAsync(It.IsAny<User>()), Times.Never);
         _professionals.Verify(p => p.RegisterPendingProfessionalAsync(It.IsAny<long>(), It.IsAny<string>(),
             It.IsAny<string>()), Times.Never);
+    }
+
+    // ------------------------------------------------------------------ DNI, nombre, contraseña y consentimientos
+
+    /// <summary>
+    /// NOTA DE PRUEBA:
+    /// - ¿Por qué se realizó esta prueba?: el registro ahora incluye el DNI y deja constancia separada de la
+    ///   aceptación de Términos y de la Política de Privacidad (Ley 29733), con la versión vigente de cada documento.
+    /// - ¿Qué hace esta prueba?: registra un USER y verifica que el DNI se guarda normalizado, que el nombre se
+    ///   normaliza y que se crean dos consentimientos (TERMS y PRIVACY_POLICY) con su versión.
+    /// </summary>
+    [Fact]
+    public async Task SignUp_Valid_ShouldStoreDniNormalizedNameAndTwoConsents()
+    {
+        User? saved = null;
+        _users.Setup(u => u.AddAsync(It.IsAny<User>())).Callback<User>(u => saved = u).Returns(Task.CompletedTask);
+
+        await CreateService().Handle(Worker() with
+        {
+            FullName = "  Ana   Torres  ", Dni = " 12345678 ", ConfirmPassword = "Secreta123",
+            AcceptedPrivacyPolicy = true
+        });
+
+        Assert.Equal("12345678", saved!.Dni);
+        Assert.Equal("Ana Torres", saved.FullName);
+        Assert.Equal(2, _savedConsents.Count);
+        Assert.Contains(_savedConsents, c => c.Type == ConsentType.Terms && c.Version == "2026-11");
+        Assert.Contains(_savedConsents, c => c.Type == ConsentType.PrivacyPolicy && c.Version == "2026-11");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task SignUp_EmptyName_ShouldBeRejected(string? fullName) =>
+        await AssertRejectedAsync(Worker() with { FullName = fullName }, "fullName");
+
+    [Theory]
+    [InlineData("Ana Torres 2")]
+    [InlineData("Ana <script>")]
+    [InlineData("Ana_Torres Ruiz")]
+    [InlineData("@@ ##")]
+    public async Task SignUp_NameWithInvalidCharacters_ShouldBeRejected(string fullName) =>
+        await AssertRejectedAsync(Worker() with { FullName = fullName }, "fullName");
+
+    [Theory]
+    [InlineData("María José Ñahui")]
+    [InlineData("Jean-Pierre O'Connor")]
+    [InlineData("Ana M. Torres")]
+    public async Task SignUp_LegitimateNames_ShouldBeAccepted(string fullName)
+    {
+        var result = await CreateService().Handle(Worker() with { FullName = fullName });
+        Assert.Equal(fullName, result.User.FullName);
+    }
+
+    [Fact]
+    public async Task SignUp_NameTooLong_ShouldBeRejected() =>
+        await AssertRejectedAsync(Worker() with { FullName = "Ana " + new string('a', 120) }, "fullName");
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("1234567")]
+    [InlineData("123456789")]
+    [InlineData("1234567A")]
+    [InlineData("1234-678")]
+    [InlineData("1234 678")]
+    [InlineData("١٢٣٤٥٦٧٨")]
+    public async Task SignUp_InvalidDni_ShouldBeRejected(string? dni) =>
+        await AssertRejectedAsync(Worker() with { Dni = dni }, "dni");
+
+    [Fact]
+    public async Task SignUp_DuplicateDni_ShouldThrowConflict()
+    {
+        _users.Setup(u => u.ExistsByDniAsync("12345678")).ReturnsAsync(true);
+
+        var exception = await Assert.ThrowsAsync<ConflictException>(() => CreateService().Handle(Worker()));
+
+        Assert.Equal("Ya existe una cuenta con este DNI", exception.Message);
+        Assert.DoesNotContain("12345678", exception.Message);
+        _users.Verify(u => u.AddAsync(It.IsAny<User>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("ana@")]
+    [InlineData("ana.neurozen.com")]
+    [InlineData("")]
+    public async Task SignUp_InvalidEmail_ShouldBeRejected(string email) =>
+        await AssertRejectedAsync(Worker() with { Email = email }, "email");
+
+    [Fact]
+    public async Task SignUp_EmailIsNormalized()
+    {
+        var result = await CreateService().Handle(Worker() with { Email = "  Ana@NeuroZen.COM " });
+        Assert.Equal("ana@neurozen.com", result.User.Email);
+    }
+
+    [Theory]
+    [InlineData("Abc1234")]      // 7 caracteres
+    [InlineData("SoloLetras")]   // sin números
+    [InlineData("12345678")]     // sin letras
+    public async Task SignUp_WeakPassword_ShouldBeRejected(string password) =>
+        await AssertRejectedAsync(Worker() with { Password = password }, "password");
+
+    [Fact]
+    public async Task SignUp_ConfirmPasswordMismatch_ShouldBeRejected() =>
+        await AssertRejectedAsync(Worker() with { ConfirmPassword = "OtraClave99" }, "confirmPassword");
+
+    [Fact]
+    public async Task SignUp_PrivacyPolicyExplicitlyRejected_ShouldBeRejected()
+    {
+        await AssertRejectedAsync(Worker() with { AcceptedPrivacyPolicy = false }, "acceptedPrivacyPolicy");
+        Assert.Empty(_savedConsents);
+    }
+
+    [Fact]
+    public async Task SignUp_PasswordIsHashed_AndNeverStoredInPlainText()
+    {
+        User? saved = null;
+        _users.Setup(u => u.AddAsync(It.IsAny<User>())).Callback<User>(u => saved = u).Returns(Task.CompletedTask);
+
+        await CreateService().Handle(Worker() with { ConfirmPassword = "Secreta123" });
+
+        Assert.Equal("$2a$12$hash-de-prueba", saved!.PasswordHash);
+        _hashing.Verify(h => h.HashPassword("Secreta123"), Times.Once);
+    }
+
+    // ------------------------------------------------------------------ Registro de psicólogos
+
+    [Fact]
+    public async Task SignUp_Psychologist_InvalidDni_ShouldBeRejected() =>
+        await AssertRejectedAsync(Psychologist() with { Dni = "8765432X" }, "dni");
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task SignUp_Psychologist_EmptySpecialty_ShouldBeRejected(string? specialty) =>
+        await AssertRejectedAsync(Psychologist() with { Specialty = specialty }, "specialty");
+
+    [Theory]
+    [InlineData("astrologia")]
+    [InlineData("Psicología clínica")]
+    [InlineData("<b>clinical</b>")]
+    public async Task SignUp_Psychologist_SpecialtyNotInCatalogue_ShouldBeRejected(string specialty) =>
+        await AssertRejectedAsync(Psychologist() with { Specialty = specialty }, "specialty");
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("12")]
+    [InlineData("1234567")]
+    [InlineData("45A21")]
+    public async Task SignUp_Psychologist_InvalidLicense_ShouldBeRejected(string? license) =>
+        await AssertRejectedAsync(Psychologist() with { LicenseNumber = license }, "licenseNumber");
+
+    [Fact]
+    public async Task SignUp_Psychologist_InvalidPassword_ShouldBeRejected() =>
+        await AssertRejectedAsync(Psychologist() with { Password = "corta1" }, "password");
+
+    [Fact]
+    public async Task SignUp_Psychologist_DuplicateEmail_ShouldThrowConflict()
+    {
+        _users.Setup(u => u.ExistsByEmailAsync("elena@psico.pe")).ReturnsAsync(true);
+        await Assert.ThrowsAsync<ConflictException>(() => CreateService().Handle(Psychologist()));
+        _professionals.Verify(p => p.RegisterPendingProfessionalAsync(It.IsAny<long>(), It.IsAny<string>(),
+            It.IsAny<string>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("clinical")]
+    [InlineData("organizational")]
+    [InlineData("educational")]
+    [InlineData("family")]
+    [InlineData("childAdolescent")]
+    [InlineData("health")]
+    [InlineData("social")]
+    [InlineData("neuropsychology")]
+    public async Task SignUp_Psychologist_EveryAllowedSpecialty_ShouldBeAccepted(string specialty)
+    {
+        var result = await CreateService().Handle(Psychologist() with { Specialty = specialty });
+        Assert.Equal(UserRole.Psychologist, result.User.Role);
+        _professionals.Verify(p => p.RegisterPendingProfessionalAsync(It.IsAny<long>(), specialty, "45821"),
+            Times.Once);
     }
 }

@@ -56,6 +56,9 @@ public class AppointmentQueryService(
         if (participant == AppointmentParticipant.None)
             throw new ResourceNotFoundException(AppointmentAccess.NotFoundMessage);
 
+        if (participant == AppointmentParticipant.Psychologist)
+            await access.EnsureVerifiedProfessionalAsync(appointment);
+
         return await access.ToDetailsAsync(appointment, participant == AppointmentParticipant.Psychologist);
     }
 }

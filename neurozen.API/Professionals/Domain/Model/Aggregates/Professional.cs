@@ -101,6 +101,23 @@ public partial class Professional
         return resubmitted;
     }
 
+    /// <summary>
+    ///     The identity checked by the admin (full name) changed outside PUT /professionals/me (e.g. PUT /users/{id}):
+    ///     a VERIFIED or REJECTED request goes back to PENDING so the admin reviews it again. Returns true when the
+    ///     status changed. It never approves anything.
+    /// </summary>
+    public bool ReturnToPendingVerification(DateTime nowUtc)
+    {
+        if (VerificationStatus == VerificationStatus.Pending || IsDeleted) return false;
+
+        VerificationStatus = VerificationStatus.Pending;
+        RejectionReason = null;
+        VerifiedAt = null;
+        VerifiedBy = null;
+        UpdatedAt = nowUtc;
+        return true;
+    }
+
     /// <summary>Recomputed from the stored reviews after each new review (average rounded to 1 decimal).</summary>
     public void ApplyReviewStatistics(decimal averageRating, int reviewsCount)
     {
@@ -158,6 +175,7 @@ public partial class Professional
     public static bool IsValidLicenseNumber(string? licenseNumber) =>
         licenseNumber is not null && LicenseNumberRegex().IsMatch(licenseNumber.Trim());
 
-    [GeneratedRegex(@"^\d{3,6}$")]
+    // [0-9] instead of \d: in .NET \d also matches non-ASCII digits (e.g. Arabic-Indic "٤٥٨٢١").
+    [GeneratedRegex("^[0-9]{3,6}$", RegexOptions.CultureInvariant)]
     private static partial Regex LicenseNumberRegex();
 }

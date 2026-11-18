@@ -22,6 +22,11 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.SecurityStamp).HasMaxLength(32).IsRequired();
         builder.Property(u => u.FullName).HasMaxLength(User.FullNameMaxLength).IsRequired();
 
+        // Nullable: accounts created before the DNI was introduced (and anonymized accounts) have none.
+        // MySQL unique indexes allow several NULLs, so historical rows are not affected.
+        builder.Property(u => u.Dni).HasMaxLength(Dni.Length).IsFixedLength();
+        builder.HasIndex(u => u.Dni).IsUnique().HasDatabaseName("ux_users_dni");
+
         builder.Property(u => u.Role)
             .HasConversion(v => v.ToWire(), v => UserRoleExtensions.FromWire(v))
             .HasMaxLength(20)

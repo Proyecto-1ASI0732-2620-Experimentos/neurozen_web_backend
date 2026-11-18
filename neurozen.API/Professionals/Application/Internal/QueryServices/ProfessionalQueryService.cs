@@ -94,7 +94,7 @@ public class ProfessionalQueryService(
         var owners = await iamContextFacade.FetchUserSummariesAsync(professionals.Select(p => p.UserId));
         return professionals
             .Select(p => owners.TryGetValue(p.UserId, out var owner)
-                ? new ProfessionalDetails(p, owner.FullName, owner.Email)
+                ? new ProfessionalDetails(p, owner.FullName, owner.Email, owner.Dni)
                 : new ProfessionalDetails(p, string.Empty, string.Empty))
             .ToList();
     }

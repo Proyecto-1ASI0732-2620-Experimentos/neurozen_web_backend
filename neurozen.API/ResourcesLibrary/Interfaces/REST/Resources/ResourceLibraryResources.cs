@@ -27,6 +27,7 @@ public record ResourceLibraryDetailResource(
     string Author,
     DateTime CreatedAt);
 
+/// <summary>POST /resource-libraries (ADMIN). requiredPlan: 1 = Básico, 2 = Avanzado (default), 3 = Profesional.</summary>
 public record CreateResourceLibraryResource(
     string? Title,
     string? Description,
@@ -36,4 +37,20 @@ public record CreateResourceLibraryResource(
     string? ContentUrl,
     int? Duration,
     string? Thumbnail,
-    List<string?>? Tags);
+    List<string?>? Tags,
+    int? RequiredPlan = null);
+
+/// <summary>
+///     PATCH /resource-libraries/{id} (ADMIN): null/missing = keep; "" clears an optional field.
+///     requiredPlan: 1 = Básico, 2 = Avanzado, 3 = Profesional.
+/// </summary>
+public record UpdateResourceLibraryResource(
+    string? Title,
+    string? Description,
+    string? Content,
+    string? Author,
+    string? ContentUrl,
+    int? Duration,
+    string? Thumbnail,
+    List<string?>? Tags,
+    int? RequiredPlan = null);

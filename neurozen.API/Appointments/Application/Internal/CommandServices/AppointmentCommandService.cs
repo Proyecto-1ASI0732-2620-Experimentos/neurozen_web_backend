@@ -81,10 +81,12 @@ public class AppointmentCommandService(
         {
             case AppointmentStatus.Confirmed:
                 EnsurePsychologist(participant, "Solo el psicólogo de la cita puede confirmarla");
+                await access.EnsureVerifiedProfessionalAsync(appointment);
                 appointment.Confirm(now);
                 break;
             case AppointmentStatus.Completed:
                 EnsurePsychologist(participant, "Solo el psicólogo de la cita puede marcarla como atendida");
+                await access.EnsureVerifiedProfessionalAsync(appointment);
                 appointment.Complete(now);
                 break;
             case AppointmentStatus.Cancelled:
@@ -93,7 +95,13 @@ public class AppointmentCommandService(
         }
 
         await unitOfWork.CompleteAsync();
-        return await access.ToDetailsAsync(appointment, participant == AppointmentParticipant.Psychologist);
+        // A non-verified psychologist may still cancel (to free the patient), but does not receive the patient e-mail.
+        var includePatientEmail = participant == AppointmentParticipant.Psychologist &&
+                                  (target != AppointmentStatus.Cancelled ||
+                                   await professionalsContextFacade.FindByIdAsync(appointment.ProfessionalId)
+                                       is { IsBookable: true });
+
+        return await access.ToDetailsAsync(appointment, includePatientEmail);
     }
 
     private static void EnsurePsychologist(AppointmentParticipant participant, string message)

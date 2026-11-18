@@ -42,6 +42,7 @@ using neurozen.API.Professionals.Infrastructure.Authorization;
 using neurozen.API.Professionals.Infrastructure.Repositories;
 using neurozen.API.Professionals.Interfaces.ACL;
 using neurozen.API.Professionals.Interfaces.ACL.Services;
+using neurozen.API.ResourcesLibrary.Application.Internal;
 using neurozen.API.ResourcesLibrary.Application.Internal.CommandServices;
 using neurozen.API.ResourcesLibrary.Application.Internal.QueryServices;
 using neurozen.API.ResourcesLibrary.Domain.Repositories;
@@ -70,6 +71,8 @@ using neurozen.API.Subscriptions.Domain.Repositories;
 using neurozen.API.Subscriptions.Domain.Services;
 using neurozen.API.Subscriptions.Infrastructure.AccountDeletion;
 using neurozen.API.Subscriptions.Infrastructure.Repositories;
+using neurozen.API.Subscriptions.Interfaces.ACL;
+using neurozen.API.Subscriptions.Interfaces.ACL.Services;
 using neurozen.API.Wellness.Infrastructure.AccountDeletion;
 using neurozen.API.Wellness.Application.Internal.CommandServices;
 using neurozen.API.Wellness.Application.Internal.QueryServices;
@@ -199,11 +202,13 @@ builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 
 // ---------------------------------------------------------------- IAM
 builder.Services.Configure<PasswordResetSettings>(configuration.GetSection("PasswordReset"));
+builder.Services.Configure<LegalSettings>(configuration.GetSection("Legal"));
 builder.Services.Configure<EmailSettings>(configuration.GetSection("Email"));
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddSingleton<IHashingService, HashingService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
+builder.Services.AddScoped<IUserConsentRepository, UserConsentRepository>();
 builder.Services.AddScoped<IUserCommandService, UserCommandService>();
 builder.Services.AddScoped<IPasswordResetCommandService, PasswordResetCommandService>();
 builder.Services.AddScoped<IUserQueryService, UserQueryService>();
@@ -245,6 +250,7 @@ builder.Services.AddScoped<IReportQueryService, ReportQueryService>();
 
 // ---------------------------------------------------------------- Resource library
 builder.Services.AddScoped<IResourceLibraryRepository, ResourceLibraryRepository>();
+builder.Services.AddScoped<ResourceAccess>();
 builder.Services.AddScoped<IResourceLibraryCommandService, ResourceLibraryCommandService>();
 builder.Services.AddScoped<IResourceLibraryQueryService, ResourceLibraryQueryService>();
 
@@ -258,6 +264,7 @@ builder.Services.AddScoped<IMeditationQueryService, MeditationQueryService>();
 
 // ---------------------------------------------------------------- Subscriptions
 builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
+builder.Services.AddScoped<ISubscriptionsContextFacade, SubscriptionsContextFacade>();
 builder.Services.AddScoped<ISubscriptionCommandService, SubscriptionCommandService>();
 builder.Services.AddScoped<ISubscriptionQueryService, SubscriptionQueryService>();
 

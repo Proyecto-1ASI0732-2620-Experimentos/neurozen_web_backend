@@ -16,6 +16,11 @@ public static class ResourceLibraryAssembler
         r.ContentUrl ?? string.Empty, r.Duration, r.Thumbnail ?? string.Empty, r.Tags, r.Author ?? string.Empty,
         r.CreatedAt);
 
+    public static AdminResourceLibraryResource ToAdminResource(ResourceLibrary r) => new(
+        r.Id, r.Title, r.Description ?? string.Empty, r.Content ?? string.Empty, r.ResourceType.ToWire(),
+        r.ContentUrl ?? string.Empty, r.Duration, r.Thumbnail ?? string.Empty, r.Tags, r.Author ?? string.Empty,
+        r.CreatedAt, (int)r.RequiredPlan, r.RequiredPlan.DisplayName());
+
     public static CreateResourceLibraryCommand ToCommand(CreateResourceLibraryResource r) =>
         new(r.Title, r.Description, r.Content, r.Author, r.ResourceType, r.ContentUrl, r.Duration, r.Thumbnail, r.Tags,
             r.RequiredPlan);

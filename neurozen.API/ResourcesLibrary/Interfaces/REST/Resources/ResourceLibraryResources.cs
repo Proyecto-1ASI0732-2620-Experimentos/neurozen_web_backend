@@ -27,6 +27,25 @@ public record ResourceLibraryDetailResource(
     string Author,
     DateTime CreatedAt);
 
+/// <summary>
+///     ADMIN view (GET /admin/resource-libraries[/{id}] and the POST/PATCH responses): the detail plus the plan.
+///     requiredPlan: 1 = Básico, 2 = Avanzado, 3 = Profesional; requiredPlanName: "Básico", "Avanzado", "Profesional".
+/// </summary>
+public record AdminResourceLibraryResource(
+    long Id,
+    string Title,
+    string Description,
+    string Content,
+    string ResourceType,
+    string ContentUrl,
+    int Duration,
+    string Thumbnail,
+    IReadOnlyList<string> Tags,
+    string Author,
+    DateTime CreatedAt,
+    int RequiredPlan,
+    string RequiredPlanName);
+
 /// <summary>POST /resource-libraries (ADMIN). requiredPlan: 1 = Básico, 2 = Avanzado (default), 3 = Profesional.</summary>
 public record CreateResourceLibraryResource(
     string? Title,

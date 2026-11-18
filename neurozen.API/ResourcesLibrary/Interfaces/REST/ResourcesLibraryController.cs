@@ -41,31 +41,55 @@ public class ResourcesLibraryController(
         return Ok(ResourceLibraryAssembler.ToDetailResource(resource));
     }
 
-    // Not part of the frontend contract: content management is restricted to ADMIN.
+    // ------------------------------------------------------------------ Content management (ADMIN only)
+
+    [HttpGet("admin/resource-libraries")]
+    [Authorize(Roles = AppRoles.Admin)]
+    [SwaggerOperation(Summary = "All resources with their plan, without the plan filter (ADMIN)")]
+    [SwaggerResponse(StatusCodes.Status200OK, "Resources", typeof(IEnumerable<AdminResourceLibraryResource>))]
+    public async Task<ActionResult<IEnumerable<AdminResourceLibraryResource>>> GetAllForAdmin()
+    {
+        var resources = await queryService.Handle(new GetAllResourceLibrariesForAdminQuery());
+        return Ok(resources.Select(ResourceLibraryAssembler.ToAdminResource));
+    }
+
+    [HttpGet("admin/resource-libraries/{id:long}")]
+    [Authorize(Roles = AppRoles.Admin)]
+    [SwaggerOperation(Summary = "One resource with its plan, to fill the edit form (ADMIN)")]
+    [SwaggerResponse(StatusCodes.Status200OK, "The resource", typeof(AdminResourceLibraryResource))]
+    [SwaggerResponse(StatusCodes.Status404NotFound, "Not found", typeof(ErrorResponse))]
+    public async Task<ActionResult<AdminResourceLibraryResource>> GetByIdForAdmin(long id)
+    {
+        var resource = await queryService.Handle(new GetResourceLibraryForAdminQuery(id));
+        return Ok(ResourceLibraryAssembler.ToAdminResource(resource));
+    }
+
     [HttpPost("resource-libraries")]
     [Authorize(Roles = AppRoles.Admin)]
-    [SwaggerOperation(Summary = "Create a resource (ADMIN)")]
-    [SwaggerResponse(StatusCodes.Status201Created, "Created", typeof(ResourceLibraryDetailResource))]
+    [SwaggerOperation(Summary = "Create a resource (ADMIN)",
+        Description = "resourceType: Video | Audio | Article | Exercise. requiredPlan: 1 Básico, 2 Avanzado " +
+                      "(default), 3 Profesional. Articles and exercises carry their text in content.")]
+    [SwaggerResponse(StatusCodes.Status201Created, "Created", typeof(AdminResourceLibraryResource))]
     [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid data", typeof(ErrorResponse))]
-    public async Task<ActionResult<ResourceLibraryDetailResource>> Create(
+    public async Task<ActionResult<AdminResourceLibraryResource>> Create(
         [FromBody] CreateResourceLibraryResource resource)
     {
         var created = await commandService.Handle(ResourceLibraryAssembler.ToCommand(resource));
-        var body = ResourceLibraryAssembler.ToDetailResource(created);
-        return CreatedAtAction(nameof(GetById), new { id = body.Id }, body);
+        var body = ResourceLibraryAssembler.ToAdminResource(created);
+        return CreatedAtAction(nameof(GetByIdForAdmin), new { id = body.Id }, body);
     }
 
     [HttpPatch("resource-libraries/{id:long}")]
     [Authorize(Roles = AppRoles.Admin)]
-    [SwaggerOperation(Summary = "Edit a resource (ADMIN): link, duration, texts, thumbnail or tags",
+    [SwaggerOperation(Summary = "Edit a resource (ADMIN): link, duration, texts, thumbnail, tags or plan",
         Description = "null/missing = keep; \"\" clears an optional field. resourceType is not editable.")]
-    [SwaggerResponse(StatusCodes.Status200OK, "Updated", typeof(ResourceLibraryDetailResource))]
+    [SwaggerResponse(StatusCodes.Status200OK, "Updated", typeof(AdminResourceLibraryResource))]
     [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid data", typeof(ErrorResponse))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Not found", typeof(ErrorResponse))]
-    public async Task<ActionResult<ResourceLibraryDetailResource>> Update(long id,
+    public async Task<ActionResult<AdminResourceLibraryResource>> Update(long id,
         [FromBody] UpdateResourceLibraryResource resource)
     {
         var updated = await commandService.Handle(ResourceLibraryAssembler.ToCommand(id, resource));
-        return Ok(ResourceLibraryAssembler.ToDetailResource(updated));
+        return Ok(ResourceLibraryAssembler.ToAdminResource(updated));
     }
 }

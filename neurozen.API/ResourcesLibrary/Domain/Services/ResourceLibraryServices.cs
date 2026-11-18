@@ -18,4 +18,10 @@ public interface IResourceLibraryQueryService
 
     /// <summary>404 when it does not exist.</summary>
     Task<ResourceLibrary> Handle(GetResourceLibraryByIdQuery query);
+
+    /// <summary>ADMIN: all resources without the plan filter.</summary>
+    Task<IReadOnlyList<ResourceLibrary>> Handle(GetAllResourceLibrariesForAdminQuery query);
+
+    /// <summary>ADMIN: one resource without the plan check; 404 when it does not exist.</summary>
+    Task<ResourceLibrary> Handle(GetResourceLibraryForAdminQuery query);
 }

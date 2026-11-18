@@ -21,11 +21,17 @@ public class User
         SecurityStamp = Guid.NewGuid().ToString("N");
     }
 
-    public User(string email, string passwordHash, string fullName, UserRole role, DateTime acceptedTermsAt)
+    /// <param name="dni">
+    ///     Already validated DNI (8 digits). Optional only for accounts that are not created through the public
+    ///     sign-up (seeded admin / demo data); the sign-up service always requires it.
+    /// </param>
+    public User(string email, string passwordHash, string fullName, UserRole role, DateTime acceptedTermsAt,
+        string? dni = null)
     {
         Email = EmailAddress.Normalize(email);
         PasswordHash = passwordHash;
         FullName = fullName.Trim();
+        Dni = string.IsNullOrWhiteSpace(dni) ? null : dni.Trim();
         Role = role;
         AcceptedTermsAt = acceptedTermsAt;
         SecurityStamp = Guid.NewGuid().ToString("N");
@@ -38,6 +44,13 @@ public class User
     public string PasswordHash { get; private set; }
     public string SecurityStamp { get; private set; }
     public string FullName { get; private set; }
+
+    /// <summary>
+    ///     Peruvian DNI (8 digits, format check only). Null for accounts created before it was introduced and for
+    ///     anonymized accounts. Not editable through the profile endpoints. Never logged.
+    /// </summary>
+    public string? Dni { get; private set; }
+
     public UserRole Role { get; private set; }
     public string? PhoneNumber { get; private set; }
     public string? Address { get; private set; }
@@ -87,7 +100,7 @@ public class User
 
     /// <summary>
     ///     Removes every personal field. The email is replaced by a unique placeholder (so the real
-    ///     address can register again) and the password hash is cleared (no login is possible).
+    ///     address can register again), the DNI is released and the password hash is cleared (no login is possible).
     /// </summary>
     public void Anonymize(DateTime nowUtc)
     {
@@ -95,6 +108,7 @@ public class User
         PasswordHash = string.Empty;
         SecurityStamp = Guid.NewGuid().ToString("N");
         FullName = DeletedUserName;
+        Dni = null;
         PhoneNumber = null;
         Address = null;
         AvatarUrl = null;

@@ -9,5 +9,6 @@ public static class ModelBuilderExtensions
     {
         builder.ApplyConfiguration(new UserConfiguration());
         builder.ApplyConfiguration(new PasswordResetTokenConfiguration());
+        builder.ApplyConfiguration(new UserConsentConfiguration());
     }
 }

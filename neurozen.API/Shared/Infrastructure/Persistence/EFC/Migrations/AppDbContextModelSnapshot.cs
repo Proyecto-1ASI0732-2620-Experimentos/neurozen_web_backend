@@ -176,6 +176,12 @@ namespace neurozen.API.Shared.Infrastructure.Persistence.EFC.Migrations
                         .HasColumnType("datetime(6)")
                         .HasColumnName("deleted_at");
 
+                    b.Property<string>("Dni")
+                        .HasMaxLength(8)
+                        .HasColumnType("char(8)")
+                        .HasColumnName("dni")
+                        .IsFixedLength();
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(254)
@@ -228,11 +234,53 @@ namespace neurozen.API.Shared.Infrastructure.Persistence.EFC.Migrations
                     b.HasKey("Id")
                         .HasName("p_k_users");
 
+                    b.HasIndex("Dni")
+                        .IsUnique()
+                        .HasDatabaseName("ux_users_dni");
+
                     b.HasIndex("Email")
                         .IsUnique()
                         .HasDatabaseName("ux_users_email");
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("neurozen.API.IAM.Domain.Model.Entities.UserConsent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("AcceptedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("accepted_at");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)")
+                        .HasColumnName("type");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("p_k_user_consents");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_user_consents_user_id");
+
+                    b.ToTable("user_consents", (string)null);
                 });
 
             modelBuilder.Entity("neurozen.API.Professionals.Domain.Model.Aggregates.Professional", b =>
@@ -477,6 +525,12 @@ namespace neurozen.API.Shared.Infrastructure.Persistence.EFC.Migrations
                     b.Property<int>("Duration")
                         .HasColumnType("int")
                         .HasColumnName("duration");
+
+                    b.Property<int>("RequiredPlan")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(2)
+                        .HasColumnName("required_plan");
 
                     b.Property<string>("ResourceType")
                         .IsRequired()
@@ -869,6 +923,16 @@ namespace neurozen.API.Shared.Infrastructure.Persistence.EFC.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("f_k_password_reset_tokens_users_user_id");
+                });
+
+            modelBuilder.Entity("neurozen.API.IAM.Domain.Model.Entities.UserConsent", b =>
+                {
+                    b.HasOne("neurozen.API.IAM.Domain.Model.Aggregates.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("f_k_user_consents_users_user_id");
                 });
 
             modelBuilder.Entity("neurozen.API.Professionals.Domain.Model.Aggregates.Professional", b =>

@@ -25,7 +25,8 @@ public class UserCommandServiceSignInTests
 
     private UserCommandService CreateService(ITokenService tokenService) =>
         new(_users.Object, new Mock<IProfessionalsContextFacade>().Object, tokenService, _hashing.Object,
-            new Mock<IUnitOfWork>().Object);
+            new Mock<IUnitOfWork>().Object, new Mock<IUserConsentRepository>().Object,
+            Options.Create(new neurozen.API.IAM.Application.Internal.Configuration.LegalSettings()));
 
     private static TokenService RealTokenService() =>
         new(Options.Create(new TokenSettings

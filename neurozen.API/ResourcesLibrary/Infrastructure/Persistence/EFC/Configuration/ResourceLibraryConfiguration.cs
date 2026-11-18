@@ -37,6 +37,12 @@ public class ResourceLibraryConfiguration : IEntityTypeConfiguration<ResourceLib
                     v => TagsJson.Deserialize(TagsJson.Serialize(v))))
             .HasColumnType("json")
             .IsRequired();
+        // Stored as the Subscriptions planId (1, 2, 3). Existing rows get 2 (Advanced) from the migration default.
+        builder.Property(r => r.RequiredPlan)
+            .HasConversion<int>()
+            .HasDefaultValue(ResourcePlan.Advanced)
+            .HasSentinel((ResourcePlan)0)
+            .IsRequired();
         builder.Property(r => r.CreatedAt).IsRequired();
     }
 }

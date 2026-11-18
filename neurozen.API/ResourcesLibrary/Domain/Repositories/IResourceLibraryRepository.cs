@@ -7,5 +7,5 @@ public interface IResourceLibraryRepository : IBaseRepository<ResourceLibrary>
 {
     Task<IReadOnlyList<ResourceLibrary>> ListOrderedAsync();
 
-    Task<bool> AnyAsync();
+    Task<bool> ExistsByTitleAsync(string title);
 }

@@ -73,6 +73,7 @@ public class ProfessionalVerificationCommandService(
     private async Task<ProfessionalDetails> WithOwnerAsync(Professional professional)
     {
         var owner = await iamContextFacade.FetchUserSummaryAsync(professional.UserId);
-        return new ProfessionalDetails(professional, owner?.FullName ?? string.Empty, owner?.Email ?? string.Empty);
+        return new ProfessionalDetails(professional, owner?.FullName ?? string.Empty, owner?.Email ?? string.Empty,
+            owner?.Dni);
     }
 }

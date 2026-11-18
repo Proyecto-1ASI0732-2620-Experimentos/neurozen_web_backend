@@ -10,6 +10,9 @@ public interface IUserRepository : IBaseRepository<User>
 
     Task<bool> ExistsByEmailAsync(string email);
 
+    /// <summary>True when another account (active or not anonymized) already uses this DNI.</summary>
+    Task<bool> ExistsByDniAsync(string dni);
+
     Task<IReadOnlyList<User>> ListByIdsAsync(IReadOnlyCollection<long> ids);
 
     Task<bool> ExistsByEmailForOtherUserAsync(string email, long excludedUserId);

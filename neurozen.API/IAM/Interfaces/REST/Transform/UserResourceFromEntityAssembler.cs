@@ -18,5 +18,6 @@ public static class UserResourceFromEntityAssembler
         user.AgeRange ?? string.Empty,
         user.Occupation ?? string.Empty,
         user.WorkType ?? string.Empty,
-        user.CreatedAt);
+        user.CreatedAt,
+        user.Dni ?? string.Empty);
 }

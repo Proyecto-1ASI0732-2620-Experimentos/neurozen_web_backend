@@ -21,7 +21,8 @@ public class ResourceLibrary
     }
 
     public ResourceLibrary(string title, string? description, string? content, string? author, ResourceType resourceType,
-        string? contentUrl, int duration, string? thumbnail, IReadOnlyList<string> tags)
+        string? contentUrl, int duration, string? thumbnail, IReadOnlyList<string> tags,
+        ResourcePlan requiredPlan = ResourcePlan.Advanced)
     {
         Title = title;
         Description = description;
@@ -32,6 +33,7 @@ public class ResourceLibrary
         Duration = duration;
         Thumbnail = thumbnail;
         Tags = tags.ToList();
+        RequiredPlan = requiredPlan;
         CreatedAt = DateTime.UtcNow;
     }
 
@@ -51,5 +53,24 @@ public class ResourceLibrary
 
     public string? Thumbnail { get; private set; }
     public IReadOnlyList<string> Tags { get; private set; }
+
+    /// <summary>Minimum subscription plan needed to see the resource. New resources default to Advanced.</summary>
+    public ResourcePlan RequiredPlan { get; private set; } = ResourcePlan.Advanced;
+
     public DateTime CreatedAt { get; private set; }
+
+    /// <summary>Replaces the editable fields with already validated values. The type is not editable.</summary>
+    public void Update(string title, string? description, string? content, string? author, string? contentUrl,
+        int duration, string? thumbnail, IReadOnlyList<string> tags, ResourcePlan requiredPlan)
+    {
+        Title = title;
+        Description = description;
+        Content = content;
+        Author = author;
+        ContentUrl = contentUrl;
+        Duration = duration;
+        Thumbnail = thumbnail;
+        Tags = tags.ToList();
+        RequiredPlan = requiredPlan;
+    }
 }

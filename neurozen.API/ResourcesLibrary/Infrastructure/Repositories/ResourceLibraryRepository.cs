@@ -12,5 +12,6 @@ public class ResourceLibraryRepository(AppDbContext context)
     public async Task<IReadOnlyList<ResourceLibrary>> ListOrderedAsync() =>
         await Context.Set<ResourceLibrary>().AsNoTracking().OrderBy(r => r.Id).ToListAsync();
 
-    public Task<bool> AnyAsync() => Context.Set<ResourceLibrary>().AnyAsync();
+    public Task<bool> ExistsByTitleAsync(string title) =>
+        Context.Set<ResourceLibrary>().AnyAsync(r => r.Title == title);
 }

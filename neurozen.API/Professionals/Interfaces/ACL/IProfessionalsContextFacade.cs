@@ -24,6 +24,12 @@ public interface IProfessionalsContextFacade
     /// </summary>
     Task RegisterPendingProfessionalAsync(long userId, string specialty, string licenseNumber);
 
+    /// <summary>
+    ///     Called by IAM when the user's full name changes outside the professional profile endpoint: the profile
+    ///     goes back to PENDING verification. Does not save: the caller commits in its unit of work.
+    /// </summary>
+    Task ReturnToPendingVerificationAsync(long userId);
+
     Task<ProfessionalReference?> FindByIdAsync(long professionalId);
 
     Task<ProfessionalReference?> FindByUserIdAsync(long userId);

@@ -54,4 +54,18 @@ public class ResourcesLibraryController(
         var body = ResourceLibraryAssembler.ToDetailResource(created);
         return CreatedAtAction(nameof(GetById), new { id = body.Id }, body);
     }
+
+    [HttpPatch("resource-libraries/{id:long}")]
+    [Authorize(Roles = AppRoles.Admin)]
+    [SwaggerOperation(Summary = "Edit a resource (ADMIN): link, duration, texts, thumbnail or tags",
+        Description = "null/missing = keep; \"\" clears an optional field. resourceType is not editable.")]
+    [SwaggerResponse(StatusCodes.Status200OK, "Updated", typeof(ResourceLibraryDetailResource))]
+    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid data", typeof(ErrorResponse))]
+    [SwaggerResponse(StatusCodes.Status404NotFound, "Not found", typeof(ErrorResponse))]
+    public async Task<ActionResult<ResourceLibraryDetailResource>> Update(long id,
+        [FromBody] UpdateResourceLibraryResource resource)
+    {
+        var updated = await commandService.Handle(ResourceLibraryAssembler.ToCommand(id, resource));
+        return Ok(ResourceLibraryAssembler.ToDetailResource(updated));
+    }
 }

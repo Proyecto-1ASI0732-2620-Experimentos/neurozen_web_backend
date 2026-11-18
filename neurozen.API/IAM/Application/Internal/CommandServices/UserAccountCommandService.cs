@@ -5,6 +5,7 @@ using neurozen.API.IAM.Domain.Model.Commands;
 using neurozen.API.IAM.Domain.Model.ValueObjects;
 using neurozen.API.IAM.Domain.Repositories;
 using neurozen.API.IAM.Domain.Services;
+using neurozen.API.Professionals.Interfaces.ACL;
 using neurozen.API.Shared.Application.Accounts;
 using neurozen.API.Shared.Domain.Model.Exceptions;
 using neurozen.API.Shared.Domain.Repositories;
@@ -15,7 +16,8 @@ public class UserAccountCommandService(
     IUserRepository userRepository,
     IHashingService hashingService,
     IEnumerable<IUserDataEraser> userDataErasers,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    IProfessionalsContextFacade professionalsContextFacade)
     : IUserAccountCommandService
 {
     public async Task<User> Handle(UpdateUserProfileCommand command)
@@ -26,7 +28,7 @@ public class UserAccountCommandService(
         var email = command.Email is null ? user.Email : EmailAddress.Normalize(command.Email);
         errors.AddIf(command.Email is not null && !EmailAddress.IsValid(email), "email", "Ingresa un correo válido");
 
-        var fullName = command.FullName is null ? user.FullName : command.FullName.Trim();
+        var fullName = command.FullName is null ? user.FullName : PersonName.Normalize(command.FullName);
         if (command.FullName is not null) PersonName.Validate(fullName, "fullName", errors);
 
         var phoneNumber = Merge(command.PhoneNumber, user.PhoneNumber);
@@ -73,6 +75,12 @@ public class UserAccountCommandService(
             if (await userRepository.ExistsByEmailForOtherUserAsync(email, user.Id))
                 throw new ConflictException("Ya existe una cuenta con este correo");
         }
+
+        // The admin verified the psychologist's name against the CPsP registry: changing it here must send the
+        // professional profile back to PENDING, exactly like PUT /professionals/me does (no verification bypass).
+        var fullNameChanged = !string.Equals(fullName, user.FullName, StringComparison.Ordinal);
+        if (fullNameChanged && user.Role == UserRole.Psychologist)
+            await professionalsContextFacade.ReturnToPendingVerificationAsync(user.Id);
 
         user.UpdateProfile(email, fullName, phoneNumber, address, avatarUrl, dateOfBirth, ageRange, occupation,
             workType, emailChanged);
@@ -146,7 +154,8 @@ public class UserAccountCommandService(
         var trimmed = value.Trim();
         if (trimmed.Length == 0) return null;
 
-        var datePart = trimmed.Length >= 10 ? trimmed[..10] : trimmed;
+        // Only "YYYY-MM-DD" or an ISO date-time ("YYYY-MM-DDT..."); "2000-01-01xyz" is rejected.
+        var datePart = trimmed.Length > 10 && trimmed[10] is 'T' or ' ' ? trimmed[..10] : trimmed;
         if (!DateOnly.TryParseExact(datePart, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None,
                 out var date))
         {

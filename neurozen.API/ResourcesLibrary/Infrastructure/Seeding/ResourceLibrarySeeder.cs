@@ -5,7 +5,11 @@ using neurozen.API.Shared.Domain.Repositories;
 
 namespace neurozen.API.ResourcesLibrary.Infrastructure.Seeding;
 
-/// <summary>Sample resources for local demos (Seed:Demo:Enabled), only when the library is empty.</summary>
+/// <summary>
+///     Sample resources for local demos (Seed:Demo:Enabled). Idempotent per title: each sample is added only if no
+///     resource with that title exists, so they also appear when the library already holds the YouTube resources
+///     loaded by migrations. Existing rows are never modified.
+/// </summary>
 public static class ResourceLibrarySeeder
 {
     public static async Task SeedAsync(IServiceProvider services, IConfiguration configuration)
@@ -13,24 +17,33 @@ public static class ResourceLibrarySeeder
         if (!configuration.GetValue("Seed:Demo:Enabled", false)) return;
 
         var repository = services.GetRequiredService<IResourceLibraryRepository>();
-        if (await repository.AnyAsync()) return;
+        var samples = new[]
+        {
+            new ResourceLibrary(
+                "Respiración 4-7-8 para la oficina",
+                "Técnica breve para bajar la activación antes de una reunión.",
+                "Inhala por la nariz contando 4, retén el aire contando 7 y exhala por la boca contando 8. Repite 4 veces.",
+                "Equipo NeuroZen", ResourceType.Exercise, null, 5, null, ["respiración", "ansiedad"], ResourcePlan.Basic),
+            new ResourceLibrary(
+                "Pausas activas en la jornada",
+                "Cómo organizar micro-pausas para reducir la fatiga.",
+                "Cada 50 minutos de trabajo toma 5 minutos para estirarte, hidratarte y mirar a lo lejos.",
+                "Equipo NeuroZen", ResourceType.Article, null, 4, null, ["hábitos", "productividad"], ResourcePlan.Basic),
+            new ResourceLibrary(
+                "Meditación guiada de 10 minutos",
+                "Atención a la respiración para cerrar el día.",
+                null, "Equipo NeuroZen", ResourceType.Audio,
+                "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", 10, null, ["meditación"])
+        };
 
-        await repository.AddAsync(new ResourceLibrary(
-            "Respiración 4-7-8 para la oficina",
-            "Técnica breve para bajar la activación antes de una reunión.",
-            "Inhala por la nariz contando 4, retén el aire contando 7 y exhala por la boca contando 8. Repite 4 veces.",
-            "Equipo NeuroZen", ResourceType.Exercise, null, 5, null, ["respiración", "ansiedad"]));
-        await repository.AddAsync(new ResourceLibrary(
-            "Pausas activas en la jornada",
-            "Cómo organizar micro-pausas para reducir la fatiga.",
-            "Cada 50 minutos de trabajo toma 5 minutos para estirarte, hidratarte y mirar a lo lejos.",
-            "Equipo NeuroZen", ResourceType.Article, null, 4, null, ["hábitos", "productividad"]));
-        await repository.AddAsync(new ResourceLibrary(
-            "Meditación guiada de 10 minutos",
-            "Atención a la respiración para cerrar el día.",
-            null, "Equipo NeuroZen", ResourceType.Audio,
-            "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", 10, null, ["meditación"]));
+        var added = false;
+        foreach (var sample in samples)
+        {
+            if (await repository.ExistsByTitleAsync(sample.Title)) continue;
+            await repository.AddAsync(sample);
+            added = true;
+        }
 
-        await services.GetRequiredService<IUnitOfWork>().CompleteAsync();
+        if (added) await services.GetRequiredService<IUnitOfWork>().CompleteAsync();
     }
 }

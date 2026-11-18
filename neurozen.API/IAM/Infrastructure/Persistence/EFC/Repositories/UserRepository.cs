@@ -17,6 +17,9 @@ public class UserRepository(AppDbContext context) : BaseRepository<User>(context
     public Task<bool> ExistsByEmailAsync(string email) =>
         Context.Set<User>().AnyAsync(u => u.Email == email);
 
+    public Task<bool> ExistsByDniAsync(string dni) =>
+        Context.Set<User>().AnyAsync(u => u.Dni == dni);
+
     public Task<bool> ExistsByEmailForOtherUserAsync(string email, long excludedUserId) =>
         Context.Set<User>().AnyAsync(u => u.Email == email && u.Id != excludedUserId);
 

@@ -207,7 +207,8 @@ public class SecurityIntegrationTests(IntegrationFixture fixture)
         // Act
         var signUp = await anonymous.PostAsJsonAsync("/api/v1/authentication/sign-up", new
         {
-            email, password = TestApi.DefaultPassword, fullName = "Rosa Quispe", role = "USER", acceptedTerms = true
+            email, password = TestApi.DefaultPassword, fullName = "Rosa Quispe", dni = TestApi.UniqueDni(),
+            role = "USER", acceptedTerms = true
         });
         var token = (await signUp.ReadJsonAsync()).GetProperty("token").GetString()!;
         var userId = (await signUp.ReadJsonAsync()).GetProperty("id").GetInt64();
@@ -255,12 +256,12 @@ public class SecurityIntegrationTests(IntegrationFixture fixture)
         var duplicate = await anonymous.PostAsJsonAsync("/api/v1/authentication/sign-up", new
         {
             email = existing.Email, password = TestApi.DefaultPassword, fullName = "Ana Torres", role = "USER",
-            acceptedTerms = true
+            dni = TestApi.UniqueDni(), acceptedTerms = true
         });
         var admin = await anonymous.PostAsJsonAsync("/api/v1/authentication/sign-up", new
         {
             email = TestApi.UniqueEmail("intruso"), password = TestApi.DefaultPassword, fullName = "Carlos Rojas",
-            role = "ADMIN", acceptedTerms = true
+            dni = TestApi.UniqueDni(), role = "ADMIN", acceptedTerms = true
         });
 
         // Assert

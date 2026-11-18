@@ -276,4 +276,57 @@ public class RegistrationIntegrationTests(IntegrationFixture fixture)
         Assert.Equal(2, await Env.QueryDatabaseAsync(db => db.Set<UserConsent>().CountAsync(c => c.UserId == userId)));
         Assert.Equal(HttpStatusCode.Created, again.StatusCode);
     }
+
+    // ------------------------------------------------------------------ Contrato sin campos duplicados
+
+    /// <summary>
+    /// NOTA DE PRUEBA:
+    /// - ¿Por qué se realizó esta prueba?: Swagger mostraba fullName junto a firstName/lastName y email junto a username;
+    ///   el cliente no sabía cuál enviar. El registro debe tener un solo campo por dato.
+    /// - ¿Qué hace esta prueba?: lee el esquema de SignUpResource en swagger.json y compara la lista exacta de campos.
+    /// </summary>
+    [Fact]
+    public async Task SwaggerSignUpSchema_HasOneFieldPerData()
+    {
+        var swagger = await Env.Api.Anonymous().GetAsync("/swagger/v1/swagger.json");
+        await TestApi.EnsureStatusAsync(swagger, HttpStatusCode.OK);
+
+        var properties = (await swagger.ReadJsonAsync()).GetProperty("components").GetProperty("schemas")
+            .GetProperty("SignUpResource").GetProperty("properties").EnumerateObject().Select(p => p.Name)
+            .Order(StringComparer.Ordinal).ToArray();
+
+        Assert.Equal(
+            ["acceptedPrivacyPolicy", "acceptedTerms", "confirmPassword", "dni", "email", "fullName", "licenseNumber",
+                "password", "role", "specialty"],
+            properties);
+    }
+
+    /// <summary>
+    /// NOTA DE PRUEBA:
+    /// - ¿Por qué se realizó esta prueba?: un cliente antiguo que todavía envía firstName/lastName o username debe
+    ///   recibir un error claro en el campo correcto, no crear una cuenta con datos incompletos.
+    /// - ¿Qué hace esta prueba?: envía firstName+lastName sin fullName (400 en fullName) y username sin email (400 en
+    ///   email); ninguna crea cuenta.
+    /// </summary>
+    [Fact]
+    public async Task SignUp_WithRemovedAliases_ReturnsFieldErrors_AndCreatesNothing()
+    {
+        var email = TestApi.UniqueEmail("alias");
+        var withNames = await Env.Api.Anonymous().PostAsJsonAsync("/api/v1/authentication/sign-up", new
+        {
+            email, password = TestApi.DefaultPassword, firstName = "Lucía", lastName = "Mendoza",
+            dni = TestApi.UniqueDni(), role = "USER", acceptedTerms = true
+        });
+        var withUsername = await Env.Api.Anonymous().PostAsJsonAsync("/api/v1/authentication/sign-up", new
+        {
+            username = email, password = TestApi.DefaultPassword, fullName = "Lucía Mendoza",
+            dni = TestApi.UniqueDni(), role = "USER", acceptedTerms = true
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, withNames.StatusCode);
+        Assert.True((await withNames.ReadJsonAsync()).GetProperty("errors").TryGetProperty("fullName", out _));
+        Assert.Equal(HttpStatusCode.BadRequest, withUsername.StatusCode);
+        Assert.True((await withUsername.ReadJsonAsync()).GetProperty("errors").TryGetProperty("email", out _));
+        Assert.False(await Env.QueryDatabaseAsync(db => db.Set<User>().AnyAsync(u => u.Email == email)));
+    }
 }

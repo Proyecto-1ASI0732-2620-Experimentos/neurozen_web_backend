@@ -4,27 +4,23 @@ namespace neurozen.API.IAM.Interfaces.REST.Resources;
 public record SignInResource(string? Username, string? Password);
 
 /// <summary>
-///     POST /authentication/sign-up. "email" is the login ("username" is accepted as a fallback).
-///     If "fullName" is missing it is built from firstName + lastName.
-///     specialty and licenseNumber are required only for role PSYCHOLOGIST.
-///     dni (8 digits) is required for every role. confirmPassword is optional: when sent it must match password
-///     and it is never stored. acceptedPrivacyPolicy is optional for backward compatibility: when missing,
-///     acceptedTerms (single "Términos y Política de Privacidad" checkbox) is recorded for both documents.
+///     POST /authentication/sign-up. One field per piece of data (no aliases):
+///     fullName (first name and last name in one field), dni (8 digits), email (the login), password,
+///     confirmPassword (optional; must match and is never stored), role (USER by default or PSYCHOLOGIST),
+///     acceptedTerms, acceptedPrivacyPolicy (optional; when missing, acceptedTerms is recorded for both documents),
+///     specialty and licenseNumber (required only for PSYCHOLOGIST).
 /// </summary>
 public record SignUpResource(
-    string? Username,
+    string? FullName,
+    string? Dni,
     string? Email,
     string? Password,
-    string? FullName,
-    string? FirstName,
-    string? LastName,
+    string? ConfirmPassword,
     string? Role,
     bool? AcceptedTerms,
+    bool? AcceptedPrivacyPolicy,
     string? Specialty,
-    string? LicenseNumber,
-    string? Dni = null,
-    string? ConfirmPassword = null,
-    bool? AcceptedPrivacyPolicy = null);
+    string? LicenseNumber);
 
 public record ForgotPasswordResource(string? Email);
 

@@ -274,3 +274,42 @@ Todos los puntos 1 a 9 de §A.
   a un almacenamiento compartido.
 - Estas pruebas se ejecutaron con el SDK de .NET 10 apuntando a `net9.0`. Conviene repetir `dotnet test` con el SDK 9
   del equipo o en el CI.
+
+---
+
+## Actualización (18/11/2026): contrato de registro sin campos duplicados
+
+**Problema:** Swagger mostraba en `POST /authentication/sign-up` el campo `fullName` junto con `firstName`/`lastName`,
+y `email` junto con `username`. Eran alias heredados: el backend usaba `fullName` (o unía `firstName` + `lastName`
+si faltaba) y `email` (o `username` si faltaba). Si el cliente enviaba ambos, uno se ignoraba sin avisar.
+
+**Solución:** se dejó **un solo campo por dato**. El cuerpo del registro queda así:
+
+```json
+{
+  "fullName": "Lucía Mendoza",
+  "dni": "12345678",
+  "email": "lucia@correo.com",
+  "password": "Secreta123",
+  "confirmPassword": "Secreta123",
+  "role": "USER",
+  "acceptedTerms": true,
+  "acceptedPrivacyPolicy": true,
+  "specialty": null,
+  "licenseNumber": null
+}
+```
+
+- Se eliminaron `firstName`, `lastName` y `username` **solo del registro**. Se eligió `fullName` porque el backend
+  guarda un único campo (`User.FullName`) y así lo usan el perfil, el panel admin y la verificación de psicólogos.
+- **El inicio de sesión no cambió:** `POST /authentication/sign-in` sigue recibiendo `{ "username": <correo>, "password" }`.
+- La respuesta del registro no cambió.
+- Un cliente que todavía envíe `firstName`/`lastName` o `username` en el registro recibe **400** con el error en
+  `fullName` o `email`, y no se crea ninguna cuenta.
+- **Frontend y app:** el formulario de registro debe tener un campo «Nombre completo» y enviarlo como `fullName`, y
+  enviar el correo como `email`.
+- Archivos: `IAM/Interfaces/REST/Resources/AuthenticationResources.cs`,
+  `IAM/Interfaces/REST/Transform/AuthenticationAssemblers.cs`. Pruebas en `RegistrationIntegrationTests.cs` (esquema
+  de Swagger con la lista exacta de campos, más los alias eliminados → 400). `TestEnvironment.cs` habilita Swagger en
+  las pruebas.
+- Pruebas: **262/262 ✅ en tres ejecuciones**.

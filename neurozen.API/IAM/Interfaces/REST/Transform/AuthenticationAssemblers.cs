@@ -13,17 +13,10 @@ public static class SignInCommandFromResourceAssembler
 
 public static class SignUpCommandFromResourceAssembler
 {
-    public static SignUpCommand ToCommandFromResource(SignUpResource resource)
-    {
-        var email = string.IsNullOrWhiteSpace(resource.Email) ? resource.Username : resource.Email;
-        var fullName = string.IsNullOrWhiteSpace(resource.FullName)
-            ? $"{resource.FirstName} {resource.LastName}".Trim()
-            : resource.FullName;
-
-        return new SignUpCommand(
-            email,
+    public static SignUpCommand ToCommandFromResource(SignUpResource resource) =>
+        new(resource.Email,
             resource.Password,
-            fullName,
+            resource.FullName,
             resource.Role,
             resource.AcceptedTerms == true,
             resource.Specialty,
@@ -31,7 +24,6 @@ public static class SignUpCommandFromResourceAssembler
             resource.Dni,
             resource.ConfirmPassword,
             resource.AcceptedPrivacyPolicy);
-    }
 }
 
 public static class AuthenticatedUserResourceFromEntityAssembler

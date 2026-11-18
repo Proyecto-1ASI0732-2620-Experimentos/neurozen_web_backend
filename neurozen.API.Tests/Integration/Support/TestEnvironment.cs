@@ -62,6 +62,8 @@ public sealed class TestEnvironment
             Environment.SetEnvironmentVariable("Seed__Admin__Password", AdminPassword);
             Environment.SetEnvironmentVariable("Seed__Admin__FullName", "Administrador NeuroZen");
             Environment.SetEnvironmentVariable("Seed__Demo__Enabled", "false");
+            // Exposes /swagger/v1/swagger.json so the published API contract can be asserted.
+            Environment.SetEnvironmentVariable("Swagger__Enabled", "true");
             Environment.SetEnvironmentVariable("PasswordReset__FrontendBaseUrl", "http://localhost:5173");
 
             var factory = new NeuroZenApiFactory();

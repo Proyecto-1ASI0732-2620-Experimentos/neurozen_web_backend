@@ -164,7 +164,7 @@ public class ErrorResponseTests
     public async Task EmptyErrorBody_OnlyFillsEmptyErrorResponses()
     {
         // Arrange
-        HttpContext Context(int status, string method = "GET", string? contentType = null)
+        static HttpContext Context(int status, string method = "GET", string? contentType = null)
         {
             var context = new DefaultHttpContext { Response = { Body = new MemoryStream(), StatusCode = status } };
             context.Request.Method = method;
@@ -191,7 +191,8 @@ public class ErrorResponseTests
     private static async Task<string?> ReadMessageAsync(HttpContext context)
     {
         context.Response.Body.Position = 0;
-        using var document = await JsonDocument.ParseAsync(context.Response.Body);
+        using var document = await JsonDocument.ParseAsync(context.Response.Body,
+            cancellationToken: context.RequestAborted);
         return document.RootElement.GetProperty("message").GetString();
     }
 }

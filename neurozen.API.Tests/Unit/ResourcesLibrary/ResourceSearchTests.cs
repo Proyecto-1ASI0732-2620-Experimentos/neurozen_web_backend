@@ -125,8 +125,8 @@ public class ResourceSearchTests
 
         // Assert
         Assert.True(exception.Errors!.ContainsKey("q"));
-        Assert.True(exception.Errors!.ContainsKey("limit"));
-        Assert.True(exception.Errors!.ContainsKey("type"));
+        Assert.True(exception.Errors.ContainsKey("limit"));
+        Assert.True(exception.Errors.ContainsKey("type"));
         await Assert.ThrowsAsync<ValidationFailedException>(() =>
             service.Handle(new SearchResourceLibrariesQuery("ansiedad", null, null, 0)));
     }

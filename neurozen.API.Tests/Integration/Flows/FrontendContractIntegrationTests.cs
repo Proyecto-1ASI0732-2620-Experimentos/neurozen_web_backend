@@ -16,6 +16,9 @@ namespace neurozen.API.Tests.Integration.Flows;
 [Collection(IntegrationCollection.Name)]
 public class FrontendContractIntegrationTests(IntegrationFixture fixture)
 {
+    private static readonly string[] AllWeek =
+        ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+
     private TestEnvironment Env => fixture.Environment;
 
     private static string Date(int daysAhead) =>
@@ -107,7 +110,7 @@ public class FrontendContractIntegrationTests(IntegrationFixture fixture)
             bio = "Psicóloga clínica con experiencia en estrés laboral y ansiedad.", experienceYears = 8, price = 80,
             availabilitySchedule = new
             {
-                days = new[] { "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday" },
+                days = AllWeek,
                 start = "08:00", end = "12:00"
             }
         });
@@ -149,7 +152,7 @@ public class FrontendContractIntegrationTests(IntegrationFixture fixture)
         var admin = await Env.Api.AsAdmin();
         await TestApi.EnsureStatusAsync(await TestApi.BookAsync(patient.Client, patient.UserId,
             psychologist.ProfessionalId, SlotUtc(2, 9, 0)), HttpStatusCode.Created);
-        string Url(long id, int from, int to) =>
+        static string Url(long id, int from, int to) =>
             $"/api/v1/appointments/availability?professionalId={id}&startDate={Date(from)}&endDate={Date(to)}";
 
         // Act

@@ -199,7 +199,7 @@ public class AvailabilityQueryTests
         var invalid = await Assert.ThrowsAsync<ValidationFailedException>(() => service.Handle(
             new GetAvailabilityRangeQuery(ProfessionalId, "mañana", null)));
         Assert.True(invalid.Errors!.ContainsKey("startDate"));
-        Assert.True(invalid.Errors!.ContainsKey("endDate"));
+        Assert.True(invalid.Errors.ContainsKey("endDate"));
     }
 
     /// <summary>

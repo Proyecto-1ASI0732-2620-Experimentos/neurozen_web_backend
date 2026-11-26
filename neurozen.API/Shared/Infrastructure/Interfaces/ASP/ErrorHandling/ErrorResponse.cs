@@ -51,8 +51,8 @@ public sealed record ErrorResponse
         return !trimmed.Equals("null", StringComparison.OrdinalIgnoreCase) &&
                !trimmed.Equals("undefined", StringComparison.OrdinalIgnoreCase) &&
                !trimmed.StartsWith("Exception of type", StringComparison.Ordinal) &&
-               !trimmed.StartsWith("{", StringComparison.Ordinal) &&
-               !trimmed.StartsWith("[", StringComparison.Ordinal);
+               !trimmed.StartsWith('{') &&
+               !trimmed.StartsWith('[');
     }
 
     public static string Readable(string? text, string fallback) => IsReadable(text) ? text!.Trim() : fallback;

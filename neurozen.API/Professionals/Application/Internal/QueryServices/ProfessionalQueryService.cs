@@ -155,7 +155,7 @@ public class ProfessionalQueryService(
         return duration;
     }
 
-    private static IReadOnlyList<string> FormatSlots(IEnumerable<TimeOnly> slots) =>
+    private static List<string> FormatSlots(IEnumerable<TimeOnly> slots) =>
         slots.Select(slot => slot.ToString("HH:mm", CultureInfo.InvariantCulture)).ToList();
 
     private static DateOnly Max(DateOnly a, DateOnly b) => a > b ? a : b;

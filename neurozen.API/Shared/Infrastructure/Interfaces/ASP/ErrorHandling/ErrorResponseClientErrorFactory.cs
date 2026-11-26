@@ -35,6 +35,7 @@ public static class EmptyErrorBodyMiddleware
             HttpMethods.IsHead(httpContext.Request.Method))
             return Task.CompletedTask;
 
-        return response.WriteAsJsonAsync(new ErrorResponse(ErrorResponse.ForStatus(response.StatusCode)));
+        return response.WriteAsJsonAsync(new ErrorResponse(ErrorResponse.ForStatus(response.StatusCode)),
+            httpContext.RequestAborted);
     }
 }

@@ -19,6 +19,26 @@ public class AppointmentsContextFacade(AppDbContext context) : IAppointmentsCont
             .Select(a => a.AppointmentDateTime)
             .ToListAsync();
 
+    public async Task<IReadOnlyList<BookedSlotReference>> ListBookedSlotsAsync(long professionalId, DateTime fromUtc,
+        DateTime toUtcExclusive)
+    {
+        var earliestStart = fromUtc.AddMinutes(-AppointmentType.MaxDurationMinutes);
+        var active = await context.Set<Appointment>()
+            .AsNoTracking()
+            .Where(a => a.ProfessionalId == professionalId &&
+                        (a.Status == AppointmentStatus.Pending || a.Status == AppointmentStatus.Confirmed) &&
+                        a.AppointmentDateTime > earliestStart &&
+                        a.AppointmentDateTime < toUtcExclusive)
+            .Select(a => new { a.AppointmentDateTime, a.AppointmentType })
+            .ToListAsync();
+
+        return active
+            .Select(a => new BookedSlotReference(a.AppointmentDateTime, AppointmentType.DurationOf(a.AppointmentType)))
+            .Where(slot => slot.StartUtc.AddMinutes(slot.DurationMinutes) > fromUtc)
+            .OrderBy(slot => slot.StartUtc)
+            .ToList();
+    }
+
     public async Task<AppointmentReference?> FindAppointmentAsync(long appointmentId)
     {
         var appointment = await context.Set<Appointment>().FindAsync(appointmentId);

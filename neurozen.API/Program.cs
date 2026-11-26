@@ -49,6 +49,9 @@ using neurozen.API.ResourcesLibrary.Domain.Repositories;
 using neurozen.API.ResourcesLibrary.Domain.Services;
 using neurozen.API.ResourcesLibrary.Infrastructure.Repositories;
 using neurozen.API.ResourcesLibrary.Infrastructure.Seeding;
+using neurozen.API.Safety.Application.Internal.Configuration;
+using neurozen.API.Safety.Application.Internal.QueryServices;
+using neurozen.API.Safety.Domain.Services;
 using neurozen.API.Shared.Application.Accounts;
 using neurozen.API.Shared.Application.Security;
 using neurozen.API.Shared.Domain.Repositories;
@@ -96,6 +99,8 @@ builder.Services
     .ConfigureApiBehaviorOptions(options =>
         options.InvalidModelStateResponseFactory = InvalidModelStateResponse.Create);
 
+// Bodiless MVC client errors (415, NotFound()) use { message } instead of ProblemDetails.
+builder.Services.AddSingleton<Microsoft.AspNetCore.Mvc.Infrastructure.IClientErrorFactory, ErrorResponseClientErrorFactory>();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
@@ -229,12 +234,14 @@ builder.Services.AddScoped<IProfessionalQueryService, ProfessionalQueryService>(
 builder.Services.AddScoped<IProfessionalProfileCommandService, ProfessionalProfileCommandService>();
 builder.Services.AddScoped<IProfessionalVerificationCommandService, ProfessionalVerificationCommandService>();
 builder.Services.AddScoped<IProfessionalsContextFacade, ProfessionalsContextFacade>();
+builder.Services.AddScoped<IProfessionalAvailabilityFacade, ProfessionalAvailabilityFacade>();
 
 // ---------------------------------------------------------------- Appointments
 builder.Services.AddScoped<IAppointmentRepository, AppointmentRepository>();
 builder.Services.AddScoped<AppointmentAccess>();
 builder.Services.AddScoped<IAppointmentCommandService, AppointmentCommandService>();
 builder.Services.AddScoped<IAppointmentQueryService, AppointmentQueryService>();
+builder.Services.AddScoped<IAppointmentAvailabilityQueryService, AppointmentAvailabilityQueryService>();
 builder.Services.AddScoped<IAppointmentsContextFacade, AppointmentsContextFacade>();
 
 // ---------------------------------------------------------------- Stress: triggers, assessments, reports
@@ -267,6 +274,10 @@ builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 builder.Services.AddScoped<ISubscriptionsContextFacade, SubscriptionsContextFacade>();
 builder.Services.AddScoped<ISubscriptionCommandService, SubscriptionCommandService>();
 builder.Services.AddScoped<ISubscriptionQueryService, SubscriptionQueryService>();
+
+// ---------------------------------------------------------------- Safety (crisis lines, read-only)
+builder.Services.Configure<EmergencyResourcesSettings>(configuration.GetSection("EmergencyResources"));
+builder.Services.AddSingleton<IEmergencyResourceQueryService, EmergencyResourceQueryService>();
 
 // ---------------------------------------------------------------- Account deletion participants (one per context)
 builder.Services.AddScoped<IUserDataEraser, WellnessUserDataEraser>();
@@ -305,6 +316,8 @@ if (forwardedHeadersEnabled)
     app.UseForwardedHeaders();
 
 app.UseExceptionHandler();
+// Error responses without a body (unknown route, 405...) get { "message": "..." }.
+app.UseStatusCodePages(context => EmptyErrorBodyMiddleware.WriteAsync(context.HttpContext));
 
 if (!app.Environment.IsDevelopment())
 {

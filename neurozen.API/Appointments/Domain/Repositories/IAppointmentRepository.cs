@@ -20,4 +20,16 @@ public interface IAppointmentRepository : IBaseRepository<Appointment>
 
     /// <summary>True if a PENDING or CONFIRMED appointment already takes this professional's slot.</summary>
     Task<bool> IsSlotTakenAsync(long professionalId, DateTime startUtc);
+
+    /// <summary>
+    ///     True if a PENDING or CONFIRMED appointment of the professional overlaps [startUtc, startUtc + duration),
+    ///     taking into account the duration of each appointment's type (60, 45 or 30 minutes).
+    /// </summary>
+    Task<bool> HasOverlappingActiveAppointmentAsync(long professionalId, DateTime startUtc, int durationMinutes);
+
+    /// <summary>
+    ///     Inside a transaction, locks the professional's row (SELECT ... FOR UPDATE) so that concurrent bookings for
+    ///     the same professional are serialized until commit. No-op on non-relational providers.
+    /// </summary>
+    Task LockProfessionalScheduleAsync(long professionalId);
 }

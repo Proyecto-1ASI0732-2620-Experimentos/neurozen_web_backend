@@ -77,8 +77,9 @@ public class ProfessionalQueryServiceTests
         professionals.Setup(p => p.FindByIdAsync(5)).ReturnsAsync(professional);
         var today = LimaTime.Today();
         var tomorrow = today.AddDays(1);
-        _appointments.Setup(a => a.ListBookedStartTimesAsync(5, It.IsAny<DateTime>(), It.IsAny<DateTime>()))
-            .ReturnsAsync(new List<DateTime> { LimaTime.ToUtc(tomorrow, new TimeOnly(10, 0)) });
+        // Adapted: occupied slots now come with their duration (ListBookedSlotsAsync replaced ListBookedStartTimesAsync).
+        _appointments.Setup(a => a.ListBookedSlotsAsync(5, It.IsAny<DateTime>(), It.IsAny<DateTime>()))
+            .ReturnsAsync(new List<BookedSlotReference> { new(LimaTime.ToUtc(tomorrow, new TimeOnly(10, 0)), 60) });
         var service = new ProfessionalQueryService(professionals.Object, _iam.Object, _appointments.Object);
         var nowBeforeQuery = DateTime.UtcNow;
 
@@ -121,6 +122,8 @@ public class ProfessionalQueryServiceTests
         // Assert
         Assert.Empty(slots);
         _appointments.Verify(a => a.ListBookedStartTimesAsync(It.IsAny<long>(), It.IsAny<DateTime>(),
+            It.IsAny<DateTime>()), Times.Never);
+        _appointments.Verify(a => a.ListBookedSlotsAsync(It.IsAny<long>(), It.IsAny<DateTime>(),
             It.IsAny<DateTime>()), Times.Never);
     }
 }

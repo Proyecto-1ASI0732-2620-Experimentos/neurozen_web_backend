@@ -28,6 +28,17 @@ public record CreateAppointmentResource(
 
 public record UpdateAppointmentStatusResource(string? Status);
 
+/// <summary>Free slots of one date: date "YYYY-MM-DD" and slots "HH:mm" (Lima time).</summary>
+public record AvailabilityDayResource(string Date, IReadOnlyList<string> Slots);
+
+/// <summary>GET /appointments/availability response. nextAvailableDate may be after endDate, or null.</summary>
+public record AvailabilityResource(
+    long ProfessionalId,
+    string TimeZone,
+    int SlotMinutes,
+    IReadOnlyList<AvailabilityDayResource> Days,
+    string? NextAvailableDate);
+
 public record AppointmentTypeResource(
     int Value,
     string Name,

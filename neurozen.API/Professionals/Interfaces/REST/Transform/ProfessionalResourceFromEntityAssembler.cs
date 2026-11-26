@@ -22,8 +22,12 @@ public static class ProfessionalResourceFromEntityAssembler
             p.ReviewsCount,
             p.Availability ?? string.Empty,
             p.Image ?? string.Empty,
-            p.VerificationStatus.ToWire());
+            p.VerificationStatus.ToWire(),
+            ToScheduleResource(p.AvailabilitySchedule));
     }
+
+    public static AvailabilityScheduleResource? ToScheduleResource(AvailabilitySchedule? schedule) =>
+        schedule is null ? null : new AvailabilityScheduleResource(schedule.Days, schedule.Start, schedule.End);
 }
 
 public static class MyProfessionalProfileResourceFromEntityAssembler
@@ -45,10 +49,7 @@ public static class MyProfessionalProfileResourceFromEntityAssembler
             p.Price,
             p.Rating,
             p.ReviewsCount,
-            p.AvailabilitySchedule is null
-                ? null
-                : new AvailabilityScheduleResource(p.AvailabilitySchedule.Days, p.AvailabilitySchedule.Start,
-                    p.AvailabilitySchedule.End),
+            ProfessionalResourceFromEntityAssembler.ToScheduleResource(p.AvailabilitySchedule),
             p.Availability ?? string.Empty,
             p.CreatedAt);
     }

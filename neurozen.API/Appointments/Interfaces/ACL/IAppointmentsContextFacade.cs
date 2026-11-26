@@ -19,8 +19,18 @@ public record NextAppointmentReference(
     string? NotasAdicionales,
     bool Reviewed);
 
+/// <summary>A PENDING or CONFIRMED appointment as an occupied range: UTC start and duration of its type.</summary>
+public record BookedSlotReference(DateTime StartUtc, int DurationMinutes);
+
 public interface IAppointmentsContextFacade
 {
+    /// <summary>
+    ///     PENDING/CONFIRMED appointments of a professional that overlap [fromUtc, toUtcExclusive), each with the
+    ///     duration of its type (an appointment that started before fromUtc but is still running is included).
+    /// </summary>
+    Task<IReadOnlyList<BookedSlotReference>> ListBookedSlotsAsync(long professionalId, DateTime fromUtc,
+        DateTime toUtcExclusive);
+
     /// <summary>
     ///     UTC start times already taken for a professional in [fromUtc, toUtcExclusive).
     ///     Used by available-slots to hide occupied hours.

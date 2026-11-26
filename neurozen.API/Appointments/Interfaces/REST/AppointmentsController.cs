@@ -62,12 +62,15 @@ public class AppointmentsController(
     [Authorize(Roles = AppRoles.User)]
     [SwaggerOperation(Summary = "Book an appointment (status PENDING)",
         Description = "patientId must be the caller. The professional must be VERIFIED, the date future and " +
-                      "inside the professional's availability, and the slot free.")]
+                      "inside the professional's availability, and the slot free (no overlap with PENDING or " +
+                      "CONFIRMED appointments, each with the duration of its type). appointmentType: 1 (60 min), " +
+                      "2 (45 min), 3 (30 min).")]
     [SwaggerResponse(StatusCodes.Status201Created, "Booked", typeof(AppointmentResource))]
-    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid data, past date or outside availability", typeof(ErrorResponse))]
+    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid data or past date", typeof(ErrorResponse))]
     [SwaggerResponse(StatusCodes.Status403Forbidden, "patientId is not the caller", typeof(ErrorResponse))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Professional not found or not verified", typeof(ErrorResponse))]
-    [SwaggerResponse(StatusCodes.Status409Conflict, "Slot already taken", typeof(ErrorResponse))]
+    [SwaggerResponse(StatusCodes.Status409Conflict, "Slot already taken or outside the professional's availability",
+        typeof(ErrorResponse))]
     public async Task<ActionResult<AppointmentResource>> CreateAppointment(
         [FromBody] CreateAppointmentResource resource)
     {

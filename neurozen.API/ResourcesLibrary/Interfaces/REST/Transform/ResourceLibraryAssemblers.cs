@@ -1,5 +1,6 @@
 using neurozen.API.ResourcesLibrary.Domain.Model.Aggregates;
 using neurozen.API.ResourcesLibrary.Domain.Model.Commands;
+using neurozen.API.ResourcesLibrary.Domain.Model.ReadModels;
 using neurozen.API.ResourcesLibrary.Domain.Model.ValueObjects;
 using neurozen.API.ResourcesLibrary.Interfaces.REST.Resources;
 
@@ -20,6 +21,11 @@ public static class ResourceLibraryAssembler
         r.Id, r.Title, r.Description ?? string.Empty, r.Content ?? string.Empty, r.ResourceType.ToWire(),
         r.ContentUrl ?? string.Empty, r.Duration, r.Thumbnail ?? string.Empty, r.Tags, r.Author ?? string.Empty,
         r.CreatedAt, (int)r.RequiredPlan, r.RequiredPlan.DisplayName());
+
+    public static ResourceSearchItemResource ToSearchItem(ResourceSearchHit hit) => new(
+        hit.Resource.Id, hit.Resource.Title, hit.Resource.Description ?? string.Empty,
+        hit.Resource.ResourceType.ToWire(), hit.Resource.ContentUrl ?? string.Empty,
+        hit.Resource.Thumbnail ?? string.Empty, hit.Resource.Duration, hit.Resource.Tags, hit.Score);
 
     public static CreateResourceLibraryCommand ToCommand(CreateResourceLibraryResource r) =>
         new(r.Title, r.Description, r.Content, r.Author, r.ResourceType, r.ContentUrl, r.Duration, r.Thumbnail, r.Tags,

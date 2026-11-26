@@ -20,6 +20,9 @@ public class AppointmentCommandService(
 {
     public const string SlotTakenMessage = "El horario ya no está disponible";
 
+    public const string OutsideAvailabilityMessage =
+        "El horario elegido no está dentro de la disponibilidad del profesional";
+
     public async Task<AppointmentDetails> Handle(CreateAppointmentCommand command)
     {
         var errors = new ValidationErrors();
@@ -45,20 +48,32 @@ public class AppointmentCommandService(
         if (startUtc <= DateTime.UtcNow)
             throw new ValidationFailedException("La cita debe programarse en una fecha futura");
 
-        if (!await professionalsContextFacade.IsWithinAvailabilityAsync(professionalId, startUtc))
-            throw new ValidationFailedException(
-                "El horario elegido no está dentro de la disponibilidad del profesional");
+        var type = (EAppointmentType)command.AppointmentType!.Value;
+        var durationMinutes = AppointmentType.DurationOf(type);
 
-        // Fast path; the unique index (professional_id, active_slot) still protects concurrent requests.
-        if (await appointmentRepository.IsSlotTakenAsync(professionalId, startUtc))
-            throw new ConflictException(SlotTakenMessage);
+        // 409 (not 400): the frontend asks for another hour without losing the form data.
+        if (!await IsWithinAvailabilityAsync(professionalId, startUtc, durationMinutes))
+            throw new ConflictException(OutsideAvailabilityMessage);
 
-        var appointment = new Appointment(currentUser.Id, professionalId, startUtc,
-            (EAppointmentType)command.AppointmentType!.Value, notes);
-        await appointmentRepository.AddAsync(appointment);
-        await unitOfWork.CompleteAsync();
+        Appointment? appointment = null;
+        // The professional's row is locked for the whole check-and-insert, so two simultaneous bookings that
+        // overlap (even with different start times) are serialized; the unique index
+        // (professional_id, active_slot) remains the last line of defence for identical start times.
+        await unitOfWork.ExecuteInTransactionAsync(async () =>
+        {
+            await appointmentRepository.LockProfessionalScheduleAsync(professionalId);
 
-        return await access.ToDetailsAsync(appointment, false);
+            if (await appointmentRepository.IsSlotTakenAsync(professionalId, startUtc) ||
+                await appointmentRepository.HasOverlappingActiveAppointmentAsync(professionalId, startUtc,
+                    durationMinutes))
+                throw new ConflictException(SlotTakenMessage);
+
+            appointment = new Appointment(currentUser.Id, professionalId, startUtc, type, notes);
+            await appointmentRepository.AddAsync(appointment);
+            await unitOfWork.CompleteAsync();
+        });
+
+        return await access.ToDetailsAsync(appointment!, false);
     }
 
     public async Task<AppointmentDetails> Handle(UpdateAppointmentStatusCommand command)
@@ -103,6 +118,15 @@ public class AppointmentCommandService(
 
         return await access.ToDetailsAsync(appointment, includePatientEmail);
     }
+
+    /// <summary>
+    ///     60-minute sessions keep the original check; shorter types may also start on their own grid
+    ///     (e.g. 30-minute blocks), as offered by available-slots?durationMinutes=.
+    /// </summary>
+    private async Task<bool> IsWithinAvailabilityAsync(long professionalId, DateTime startUtc, int durationMinutes) =>
+        await professionalsContextFacade.IsWithinAvailabilityAsync(professionalId, startUtc) ||
+        (durationMinutes != Professionals.Domain.Services.SlotAvailabilityCalculator.DefaultDurationMinutes &&
+         await professionalsContextFacade.IsWithinAvailabilityAsync(professionalId, startUtc, durationMinutes));
 
     private static void EnsurePsychologist(AppointmentParticipant participant, string message)
     {

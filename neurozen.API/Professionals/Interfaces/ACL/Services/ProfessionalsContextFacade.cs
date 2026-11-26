@@ -2,7 +2,7 @@ using neurozen.API.Professionals.Domain.Model.Aggregates;
 using neurozen.API.Professionals.Domain.Model.ValueObjects;
 using neurozen.API.Professionals.Domain.Repositories;
 using neurozen.API.Shared.Domain.Model.Exceptions;
-using neurozen.API.Shared.Domain.Model.Time;
+using neurozen.API.Professionals.Domain.Services;
 
 namespace neurozen.API.Professionals.Interfaces.ACL.Services;
 
@@ -41,14 +41,14 @@ public class ProfessionalsContextFacade(
     public async Task<ProfessionalReference?> FindByUserIdAsync(long userId) =>
         ToReference(await professionalRepository.FindByUserIdAsync(userId));
 
-    public async Task<bool> IsWithinAvailabilityAsync(long professionalId, DateTime startUtc)
+    public Task<bool> IsWithinAvailabilityAsync(long professionalId, DateTime startUtc) =>
+        IsWithinAvailabilityAsync(professionalId, startUtc, SlotAvailabilityCalculator.DefaultDurationMinutes);
+
+    public async Task<bool> IsWithinAvailabilityAsync(long professionalId, DateTime startUtc, int durationMinutes)
     {
         var professional = await professionalRepository.FindByIdAsync(professionalId);
-        if (professional?.AvailabilitySchedule is null) return false;
-        if (startUtc.Second != 0 || startUtc.Millisecond != 0) return false;
-
-        var (date, time) = LimaTime.FromUtc(startUtc);
-        return professional.AvailabilitySchedule.SlotsFor(date.DayOfWeek).Contains(time);
+        return SlotAvailabilityCalculator.IsScheduledStart(professional?.AvailabilitySchedule, startUtc,
+            durationMinutes);
     }
 
     private static ProfessionalReference? ToReference(Professional? professional) =>

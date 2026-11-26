@@ -36,4 +36,13 @@ public record AppointmentType
     }
 
     public static bool IsValid(int value) => Enum.IsDefined(typeof(EAppointmentType), value);
+
+    /// <summary>Longest duration among the types: how far back an earlier appointment can still overlap.</summary>
+    public static int MaxDurationMinutes => GetAll().Max(type => type.EstimatedDurationMinutes);
+
+    public static AppointmentType From(EAppointmentType type) =>
+        GetAll().FirstOrDefault(candidate => candidate.Type == type) ?? TerapiaIndividual;
+
+    /// <summary>Duration used to compute the time an appointment occupies (60, 45 or 30 minutes).</summary>
+    public static int DurationOf(EAppointmentType type) => From(type).EstimatedDurationMinutes;
 }

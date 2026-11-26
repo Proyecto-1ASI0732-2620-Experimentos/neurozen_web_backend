@@ -41,19 +41,29 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
 
     private static (int Status, ErrorResponse Response) Map(Exception exception) => exception switch
     {
-        ValidationFailedException e => (StatusCodes.Status400BadRequest, new ErrorResponse(e.Message, e.Errors)),
-        InvalidCredentialsException e => (StatusCodes.Status401Unauthorized, new ErrorResponse(e.Message)),
-        ForbiddenOperationException e => (StatusCodes.Status403Forbidden, new ErrorResponse(e.Message)),
-        ResourceNotFoundException e => (StatusCodes.Status404NotFound, new ErrorResponse(e.Message)),
-        ConflictException e => (StatusCodes.Status409Conflict, new ErrorResponse(e.Message)),
+        ValidationFailedException e => Business(StatusCodes.Status400BadRequest, e.Message, e.Errors),
+        InvalidCredentialsException e => Business(StatusCodes.Status401Unauthorized, e.Message),
+        ForbiddenOperationException e => Business(StatusCodes.Status403Forbidden, e.Message),
+        ResourceNotFoundException e => Business(StatusCodes.Status404NotFound, e.Message),
+        ConflictException e => Business(StatusCodes.Status409Conflict, e.Message),
         DbUpdateConcurrencyException => (StatusCodes.Status409Conflict,
             new ErrorResponse("El recurso cambió mientras se procesaba la solicitud. Inténtalo de nuevo.")),
         DbUpdateException e when IsDuplicateKey(e) => (StatusCodes.Status409Conflict,
             new ErrorResponse(DuplicateKeyMessage(e))),
-        BadHttpRequestException e => (e.StatusCode, new ErrorResponse("La solicitud no es válida")),
+        BadHttpRequestException e => (e.StatusCode, new ErrorResponse(e.StatusCode == StatusCodes.Status400BadRequest
+            ? "La solicitud no es válida"
+            : ErrorResponse.ForStatus(e.StatusCode))),
         _ => (StatusCodes.Status500InternalServerError,
             new ErrorResponse("Ocurrió un error inesperado. Inténtalo de nuevo más tarde."))
     };
+
+    /// <summary>
+    ///     Business errors keep their own message; a missing or technical one (e.g. a .NET default text) is replaced by
+    ///     a readable message for the status code, so "message" is never null, "null" or an object.
+    /// </summary>
+    private static (int Status, ErrorResponse Response) Business(int status, string? message,
+        IReadOnlyDictionary<string, string[]>? errors = null) =>
+        (status, new ErrorResponse(ErrorResponse.Readable(message, ErrorResponse.ForStatus(status)), errors));
 
     private static bool IsDuplicateKey(DbUpdateException exception) =>
         exception.InnerException is MySqlException { ErrorCode: MySqlErrorCode.DuplicateKeyEntry };

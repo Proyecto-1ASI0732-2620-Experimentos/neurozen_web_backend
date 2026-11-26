@@ -40,6 +40,31 @@ public class AppointmentRepository(AppDbContext context) : BaseRepository<Appoin
             a.AppointmentDateTime == startUtc &&
             (a.Status == AppointmentStatus.Pending || a.Status == AppointmentStatus.Confirmed));
 
+    public async Task<bool> HasOverlappingActiveAppointmentAsync(long professionalId, DateTime startUtc,
+        int durationMinutes)
+    {
+        var endUtc = startUtc.AddMinutes(durationMinutes);
+        var earliestStart = startUtc.AddMinutes(-AppointmentType.MaxDurationMinutes);
+        var candidates = await Context.Set<Appointment>()
+            .AsNoTracking()
+            .Where(a => a.ProfessionalId == professionalId &&
+                        (a.Status == AppointmentStatus.Pending || a.Status == AppointmentStatus.Confirmed) &&
+                        a.AppointmentDateTime > earliestStart &&
+                        a.AppointmentDateTime < endUtc)
+            .Select(a => new { a.AppointmentDateTime, a.AppointmentType })
+            .ToListAsync();
+
+        return candidates.Any(a => a.AppointmentDateTime.AddMinutes(AppointmentType.DurationOf(a.AppointmentType)) >
+                                   startUtc);
+    }
+
+    public async Task LockProfessionalScheduleAsync(long professionalId)
+    {
+        if (!Context.Database.IsRelational() || Context.Database.CurrentTransaction is null) return;
+        await Context.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT id FROM professionals WHERE id = {professionalId} FOR UPDATE");
+    }
+
     private static async Task<PageResult<Appointment>> ListPageAsync(
         IOrderedQueryable<Appointment> query, PageRequest? pageRequest)
     {

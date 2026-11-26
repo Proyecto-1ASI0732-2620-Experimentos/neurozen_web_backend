@@ -36,4 +36,10 @@ public interface IProfessionalsContextFacade
 
     /// <summary>True when the UTC start is exactly one of the professional's slots (weekday and hour, Lima time).</summary>
     Task<bool> IsWithinAvailabilityAsync(long professionalId, DateTime startUtc);
+
+    /// <summary>
+    ///     True when a session of <paramref name="durationMinutes" /> starting at the UTC instant begins a block of the
+    ///     professional's schedule (its own grid or the 60-minute grid) and ends before or at the schedule end.
+    /// </summary>
+    Task<bool> IsWithinAvailabilityAsync(long professionalId, DateTime startUtc, int durationMinutes);
 }

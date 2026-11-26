@@ -55,36 +55,110 @@ public class ProfessionalQueryService(
 
     public async Task<IReadOnlyList<string>> Handle(GetAvailableSlotsQuery query)
     {
-        if (!DateOnly.TryParseExact((query.Date ?? string.Empty).Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out var date))
-            throw new ValidationFailedException("La fecha debe tener el formato YYYY-MM-DD",
-                new Dictionary<string, string[]> { ["date"] = ["La fecha debe tener el formato YYYY-MM-DD"] });
+        var errors = new ValidationErrors();
+        var date = ParseDate(query.Date, "date", errors);
+        var duration = ResolveDuration(query.DurationMinutes, errors);
+        errors.ThrowIfAny(date is null ? DateFormatMessage : "Hay datos inválidos en la solicitud");
 
-        var professional = await professionalRepository.FindByIdAsync(query.ProfessionalId);
-        if (professional is not { IsVisibleToPatients: true })
-            throw new ResourceNotFoundException(NotFoundMessage);
+        var professional = await FindBookableAsync(query.ProfessionalId);
 
         var nowUtc = DateTime.UtcNow;
-        if (professional.AvailabilitySchedule is null || date < LimaTime.Today(nowUtc)) return [];
+        if (professional.AvailabilitySchedule is null || date!.Value < LimaTime.Today(nowUtc) ||
+            professional.AvailabilitySchedule.SlotsFor(date.Value.DayOfWeek, duration).Count == 0)
+            return [];
 
-        var slots = professional.AvailabilitySchedule.SlotsFor(date.DayOfWeek);
-        if (slots.Count == 0) return [];
+        var booked = await LoadBookedIntervalsAsync(professional.Id, date.Value, date.Value);
+        return FormatSlots(SlotAvailabilityCalculator.FreeSlots(professional.AvailabilitySchedule, date.Value,
+            duration, booked, nowUtc));
+    }
 
-        var dayStartUtc = LimaTime.ToUtc(date, TimeOnly.MinValue);
-        var booked = (await appointmentsContextFacade.ListBookedStartTimesAsync(
-                professional.Id, dayStartUtc, dayStartUtc.AddDays(1)))
-            .Select(TruncateToMinute)
-            .ToHashSet();
+    public async Task<AvailabilityCalendar> Handle(GetAvailabilityRangeQuery query)
+    {
+        var errors = new ValidationErrors();
+        var startDate = ParseDate(query.StartDate, "startDate", errors);
+        var endDate = ParseDate(query.EndDate, "endDate", errors);
+        var duration = ResolveDuration(query.DurationMinutes, errors);
+        if (startDate is { } first && endDate is { } last)
+        {
+            errors.AddIf(last < first, "endDate", "endDate no puede ser anterior a startDate");
+            errors.AddIf(last.DayNumber - first.DayNumber + 1 > GetAvailabilityRangeQuery.MaxDays, "endDate",
+                $"El rango no puede superar {GetAvailabilityRangeQuery.MaxDays} días");
+        }
 
-        return slots
-            .Where(slot =>
-            {
-                var slotUtc = LimaTime.ToUtc(date, slot);
-                return slotUtc > nowUtc && !booked.Contains(slotUtc);
-            })
-            .Select(slot => slot.ToString("HH:mm", CultureInfo.InvariantCulture))
+        errors.ThrowIfAny();
+
+        var professional = await FindBookableAsync(query.ProfessionalId);
+        var schedule = professional.AvailabilitySchedule;
+        var nowUtc = DateTime.UtcNow;
+
+        // One query covers the requested range and the search horizon of nextAvailableDate.
+        var searchFrom = Max(startDate!.Value, LimaTime.Today(nowUtc));
+        var horizon = endDate!.Value.AddDays(GetAvailabilityRangeQuery.MaxDays);
+        // Dates before today never have free slots, so bookings are only loaded from searchFrom.
+        var booked = schedule is null || horizon < searchFrom
+            ? []
+            : await LoadBookedIntervalsAsync(professional.Id, searchFrom, horizon);
+
+        var days = new List<AvailabilityDay>();
+        for (var date = startDate.Value; date <= endDate.Value; date = date.AddDays(1))
+            days.Add(new AvailabilityDay(date,
+                FormatSlots(SlotAvailabilityCalculator.FreeSlots(schedule, date, duration, booked, nowUtc))));
+
+        DateOnly? nextAvailable = null;
+        if (schedule is not null)
+            for (var date = searchFrom; date <= horizon && nextAvailable is null; date = date.AddDays(1))
+                if (SlotAvailabilityCalculator.FreeSlots(schedule, date, duration, booked, nowUtc).Count > 0)
+                    nextAvailable = date;
+
+        return new AvailabilityCalendar(professional.Id, SlotAvailabilityCalculator.TimeZoneId, duration, days,
+            nextAvailable);
+    }
+
+    private const string DateFormatMessage = "La fecha debe tener el formato YYYY-MM-DD";
+
+    private async Task<Professional> FindBookableAsync(long professionalId)
+    {
+        var professional = await professionalRepository.FindByIdAsync(professionalId);
+        if (professional is not { IsVisibleToPatients: true })
+            throw new ResourceNotFoundException(NotFoundMessage);
+        return professional;
+    }
+
+    /// <summary>Booked ranges from the Lima start of <paramref name="from" /> to the Lima end of <paramref name="to" />.</summary>
+    private async Task<IReadOnlyList<BookedInterval>> LoadBookedIntervalsAsync(long professionalId, DateOnly from,
+        DateOnly to)
+    {
+        var fromUtc = LimaTime.ToUtc(from, TimeOnly.MinValue);
+        var toUtc = LimaTime.ToUtc(to.AddDays(1), TimeOnly.MinValue);
+        var booked = await appointmentsContextFacade.ListBookedSlotsAsync(professionalId, fromUtc, toUtc)
+                     ?? [];
+        return booked
+            .Select(slot => BookedInterval.FromStart(TruncateToMinute(slot.StartUtc), slot.DurationMinutes))
             .ToList();
     }
+
+    private static DateOnly? ParseDate(string? value, string field, ValidationErrors errors)
+    {
+        if (DateOnly.TryParseExact((value ?? string.Empty).Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var date))
+            return date;
+        errors.Add(field, DateFormatMessage);
+        return null;
+    }
+
+    private static int ResolveDuration(int? durationMinutes, ValidationErrors errors)
+    {
+        var duration = durationMinutes ?? SlotAvailabilityCalculator.DefaultDurationMinutes;
+        errors.AddIf(!SlotAvailabilityCalculator.IsValidDuration(duration), "durationMinutes",
+            $"durationMinutes debe estar entre {SlotAvailabilityCalculator.MinDurationMinutes} y " +
+            $"{SlotAvailabilityCalculator.MaxDurationMinutes}");
+        return duration;
+    }
+
+    private static List<string> FormatSlots(IEnumerable<TimeOnly> slots) =>
+        slots.Select(slot => slot.ToString("HH:mm", CultureInfo.InvariantCulture)).ToList();
+
+    private static DateOnly Max(DateOnly a, DateOnly b) => a > b ? a : b;
 
     private async Task<ProfessionalDetails> WithOwnerAsync(Professional professional) =>
         (await WithOwnersAsync([professional]))[0];

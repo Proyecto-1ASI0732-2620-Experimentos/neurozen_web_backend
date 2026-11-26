@@ -2,7 +2,8 @@ namespace neurozen.API.Professionals.Interfaces.REST.Resources;
 
 /// <summary>
 ///     Public directory entry (GET /professionals, GET /professionals/{id}).
-///     Never includes licenseNumber or email.
+///     Never includes licenseNumber or email. availabilitySchedule (Lima time) feeds the booking calendar; null when
+///     the professional has not set it. price stays null when it is not defined (never 0).
 /// </summary>
 public record ProfessionalResource(
     long Id,
@@ -16,4 +17,5 @@ public record ProfessionalResource(
     int Reviews,
     string Availability,
     string Image,
-    string VerificationStatus);
+    string VerificationStatus,
+    AvailabilityScheduleResource? AvailabilitySchedule = null);

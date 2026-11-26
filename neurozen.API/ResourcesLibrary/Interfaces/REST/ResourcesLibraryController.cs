@@ -29,6 +29,21 @@ public class ResourcesLibraryController(
         return Ok(resources.Select(ResourceLibraryAssembler.ToResource));
     }
 
+    [HttpGet("resource-libraries/search")]
+    [Authorize(Policy = AppPolicies.VerifiedIfPsychologist)]
+    [SwaggerOperation(Summary = "Relevance search for ZenBot (respects the subscription plan)",
+        Description = "?q=texto&tags=csv&type=Video|Audio|Article|Exercise&limit=1-10 (default 5). At least q or " +
+                      "tags. Accent- and case-insensitive; title and tags weigh more than the description. Only " +
+                      "resources included in the caller's plan. The search text is not logged.")]
+    [SwaggerResponse(StatusCodes.Status200OK, "Hits, most relevant first", typeof(ResourceSearchResultResource))]
+    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid parameters", typeof(ErrorResponse))]
+    public async Task<ActionResult<ResourceSearchResultResource>> Search([FromQuery] string? q,
+        [FromQuery] string? tags, [FromQuery] string? type, [FromQuery] int? limit)
+    {
+        var hits = await queryService.Handle(new SearchResourceLibrariesQuery(q, tags, type, limit));
+        return Ok(new ResourceSearchResultResource(hits.Select(ResourceLibraryAssembler.ToSearchItem).ToList()));
+    }
+
     [HttpGet("resource-libraries/{id:long}")]
     [HttpGet("resources/{id:long}")]
     [Authorize(Policy = AppPolicies.VerifiedIfPsychologist)]

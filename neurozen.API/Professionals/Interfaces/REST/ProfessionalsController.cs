@@ -62,13 +62,17 @@ public class ProfessionalsController(
 
     [HttpGet("{id:long}/available-slots")]
     [Authorize(Policy = AppPolicies.VerifiedIfPsychologist)]
-    [SwaggerOperation(Summary = "Free 1-hour slots (Lima time, HH:mm) for a date (YYYY-MM-DD)")]
+    [SwaggerOperation(Summary = "Free slots (Lima time, HH:mm) for a date (YYYY-MM-DD)",
+        Description = "Blocks of durationMinutes (default 60, 15-240) inside availabilitySchedule; excludes " +
+                      "PENDING/CONFIRMED appointments (each with the duration of its type) and past hours of today. " +
+                      "Time zone: America/Lima (UTC-5).")]
     [SwaggerResponse(StatusCodes.Status200OK, "Free slots", typeof(IEnumerable<string>))]
-    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid date", typeof(ErrorResponse))]
+    [SwaggerResponse(StatusCodes.Status400BadRequest, "Invalid date or duration", typeof(ErrorResponse))]
     [SwaggerResponse(StatusCodes.Status404NotFound, "Does not exist or is not verified", typeof(ErrorResponse))]
-    public async Task<ActionResult<IEnumerable<string>>> GetAvailableSlots(long id, [FromQuery] string? date)
+    public async Task<ActionResult<IEnumerable<string>>> GetAvailableSlots(long id, [FromQuery] string? date,
+        [FromQuery] int? durationMinutes)
     {
-        return Ok(await professionalQueryService.Handle(new GetAvailableSlotsQuery(id, date)));
+        return Ok(await professionalQueryService.Handle(new GetAvailableSlotsQuery(id, date, durationMinutes)));
     }
 
     [HttpGet("{id:long}/reviews")]

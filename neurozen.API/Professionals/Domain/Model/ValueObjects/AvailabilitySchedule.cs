@@ -53,15 +53,22 @@ public record AvailabilitySchedule(IReadOnlyList<string> Days, string Start, str
     public bool Includes(DayOfWeek dayOfWeek) => Days.Contains(dayOfWeek.ToString().ToLowerInvariant());
 
     /// <summary>Slot start times (Lima) for a given weekday; empty when the day is not in the schedule.</summary>
-    public IReadOnlyList<TimeOnly> SlotsFor(DayOfWeek dayOfWeek)
+    public IReadOnlyList<TimeOnly> SlotsFor(DayOfWeek dayOfWeek) => SlotsFor(dayOfWeek, SlotMinutes);
+
+    /// <summary>
+    ///     Block start times (Lima) of <paramref name="durationMinutes" /> each, from "start" while the block ends
+    ///     before or at "end". Empty when the day is not in the schedule or the duration is not positive.
+    /// </summary>
+    public IReadOnlyList<TimeOnly> SlotsFor(DayOfWeek dayOfWeek, int durationMinutes)
     {
-        if (!Includes(dayOfWeek) || !TryParseTime(Start, out var start) || !TryParseTime(End, out var end))
+        if (durationMinutes <= 0 || !Includes(dayOfWeek) || !TryParseTime(Start, out var start) ||
+            !TryParseTime(End, out var end))
             return [];
 
         var slots = new List<TimeOnly>();
         var endMinutes = (int)end.ToTimeSpan().TotalMinutes;
-        for (var minutes = (int)start.ToTimeSpan().TotalMinutes; minutes + SlotMinutes <= endMinutes;
-             minutes += SlotMinutes)
+        for (var minutes = (int)start.ToTimeSpan().TotalMinutes; minutes + durationMinutes <= endMinutes;
+             minutes += durationMinutes)
             slots.Add(TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(minutes)));
         return slots;
     }

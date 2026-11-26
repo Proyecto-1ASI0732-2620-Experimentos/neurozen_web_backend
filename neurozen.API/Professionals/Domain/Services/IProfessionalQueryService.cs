@@ -17,6 +17,9 @@ public interface IProfessionalQueryService
     /// <summary>Admin panel, oldest first.</summary>
     Task<IReadOnlyList<ProfessionalDetails>> Handle(GetProfessionalsForAdminQuery query);
 
-    /// <summary>Free 1-hour slots ("HH:mm", Lima time) for a date.</summary>
+    /// <summary>Free slots ("HH:mm", Lima time) for a date; 60-minute blocks unless DurationMinutes is given.</summary>
     Task<IReadOnlyList<string>> Handle(GetAvailableSlotsQuery query);
+
+    /// <summary>Free slots per date over a range (max 92 days) plus the next available date.</summary>
+    Task<AvailabilityCalendar> Handle(GetAvailabilityRangeQuery query);
 }
